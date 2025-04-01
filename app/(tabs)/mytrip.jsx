@@ -1,4 +1,3 @@
-
 import { View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -8,6 +7,7 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import UserTripList from './../../component/MyTrips/UserTripList';
 import { useRouter } from 'expo-router';
 import { ScrollView } from 'react-native';
+import TranslatorButton from '../../component/TranslatorButton';
 
 export default function MyTrip() {
   const [userTrips, setUserTrips] = useState([]);
@@ -44,31 +44,36 @@ export default function MyTrip() {
  
 
   return (
-    <ScrollView style={{
-      padding: 25,
-      paddingTop: 55,
-      backgroundColor: "#fff",
-      height: "100%"
-    }}>
-      <View style={{
-        display: 'flex',
-        flexDirection: 'row',
-        alignContent: 'center',
-        justifyContent: 'space-between'
+    <View style={{ flex: 1, backgroundColor: "#fff" }}>
+      <ScrollView style={{
+        padding: 25,
+        paddingTop: 55,
+        backgroundColor: "#fff",
+        height: "100%"
       }}>
-        <Text style={{
-          fontFamily: 'outfit-bold',
-          fontSize: 35,
-        }}>My Trips</Text>
-        <TouchableOpacity onPress={handleAddNewTrip}>
-          <Ionicons name="add-circle-outline" size={50} color="black" />
-        </TouchableOpacity>
-      </View>
-      {loading && <ActivityIndicator size={'large'} color={'#000'} />}
-      {userTrips?.length === 0 ?
-        <StartNewTripCard />
-        : <UserTripList userTrips={userTrips} />
-      }
-    </ScrollView>
+        <View style={{
+          display: 'flex',
+          flexDirection: 'row',
+          alignContent: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <Text style={{
+            fontFamily: 'outfit-bold',
+            fontSize: 35,
+          }}>My Trips</Text>
+          <TouchableOpacity onPress={handleAddNewTrip}>
+            <Ionicons name="add-circle-outline" size={50} color="black" />
+          </TouchableOpacity>
+        </View>
+        {loading && <ActivityIndicator size={'large'} color={'#000'} />}
+        {userTrips?.length === 0 ?
+          <StartNewTripCard />
+          : <UserTripList userTrips={userTrips} />
+        }
+      </ScrollView>
+      
+      {/* Translator Button */}
+      <TranslatorButton />
+    </View>
   );
 }

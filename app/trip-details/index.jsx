@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, Image, ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import axios from 'axios';
@@ -133,10 +133,15 @@ export default function TripDetails() {
 
   return (
     <ScrollView style={styles.container}>
-      <Image source={imageUrl ? { uri: imageUrl } : require('./../../assets/images/p1.jpg')} style={styles.image} />
+      <Image 
+        source={imageUrl ? { uri: imageUrl } : { uri: 'https://via.placeholder.com/400x300/4682B4/FFFFFF?text=Trip+Destination' }} 
+        style={styles.image} 
+        accessibilityLabel="Trip destination image"
+      />
+      
       <View style={styles.detailsContainer}>
         <Text style={styles.locationText}>
-          {tripDetails.tripPlan?.trip_details?.destination}
+          {tripDetails.tripPlan?.trip_details?.destination || tripDetails.tripPlan?.tripDetails?.destination}
         </Text>
         <Text style={styles.dates}>
           📅 {moment(tripData.startDate).format("MMM Do")} - {" "}
@@ -151,11 +156,12 @@ export default function TripDetails() {
             <TouchableOpacity 
               style={styles.wishlistHeader} 
               onPress={toggleWishlistExpanded}
+              activeOpacity={0.7}
             >
               <View style={styles.wishlistHeaderContent}>
                 <Ionicons name="heart" size={20} color="#FF6B6B" />
                 <Text style={styles.wishlistTitle}>Your Wishlist Preferences</Text>
-      </View>
+              </View>
               <Ionicons 
                 name={wishlistExpanded ? "chevron-up" : "chevron-down"} 
                 size={20} 
@@ -181,8 +187,8 @@ export default function TripDetails() {
       </View>
 
       <FlightInfo flightData={tripDetails?.tripPlan?.flights?.details} />
-        <HotelList hotelList={tripDetails?.tripPlan?.hotels?.options} />
-        <PlannedTrip details={tripDetails?.tripPlan?.itinerary} />
+      <HotelList hotelList={tripDetails?.tripPlan?.hotels?.options} />
+      <PlannedTrip details={tripDetails?.tripPlan?.itinerary} />
     </ScrollView>
   );
 }
@@ -280,8 +286,4 @@ const styles = StyleSheet.create({
     color: '#888',
     textAlign: 'center',
   },
-  sectionContainer: {
-    marginTop: 20,
-  },
-  // ... other existing styles ...
 });
