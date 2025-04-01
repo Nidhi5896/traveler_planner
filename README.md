@@ -1,50 +1,122 @@
-# Welcome to your Expo app 👋
+# Travel Planner App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A comprehensive travel planning application built with React Native and Expo, designed to help users plan their trips, manage itineraries, and translate languages on the go.
 
-## Get started
+![Travel Planner App](https://via.placeholder.com/800x400/4682B4/FFFFFF?text=Travel+Planner+App)
 
-1. Install dependencies
+## Features
 
-   ```bash
-   npm install
-   ```
+### Trip Management
 
-2. Start the app
+- **Create New Trips**: Set up new travel itineraries with destinations, dates, and traveler details
+- **Trip Details**: View comprehensive trip information including flights, hotels, and daily activities
+- **Location Images**: Automatically fetches destination images to enhance the visual experience
 
-   ```bash
-    npx expo start
-   ```
+### Smart Itinerary Planning
 
-In the output, you'll find options to open the app in a
+- **AI-Generated Itineraries**: Get personalized trip plans based on your preferences
+- **Wishlist Integration**: Create a wishlist of activities and places to incorporate into your trip
+- **Daily Schedule**: View day-by-day breakdown of activities and events
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### Multi-Language Support
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+- **Translation Tool**: Built-in translator supporting 40+ languages worldwide
+- **Language Groups**: Indian, European, Asian, and other language categories
+- **Text-to-Speech**: Hear pronunciations of translated text (device capability dependent)
+- **Direct Google Translate**: Open translations in Google Translate for additional features
 
-## Get a fresh project
+## Technology Stack
 
-When you're ready, run:
+- **Frontend**: React Native, Expo
+- **State Management**: React Context API
+- **Authentication**: Firebase Authentication
+- **Database**: Firebase Firestore
+- **API Integration**:
+  - Pixabay API for location images
+  - Google Translate integration
+  - Expo Speech for text-to-speech
+- **Navigation**: Expo Router
+
+## Installation
+
+### Prerequisites
+
+- Node.js (v12 or higher)
+- npm or yarn
+- Expo CLI
+- Android/iOS emulator or physical device for testing
+
+### Setup
+
+1. Clone the repository:
 
 ```bash
-npm run reset-project
+git clone https://github.com/Nidhi5896/traveler_planner.git
+cd traveler_planner
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2. Install dependencies:
 
-## Learn more
+```bash
+npm install
+# or
+yarn install
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+3. Start the development server:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npx expo start
+```
 
-## Join the community
+4. Run on your device or emulator:
+   - Press 'a' for Android
+   - Press 'i' for iOS
+   - Scan the QR code with Expo Go app for physical devices
 
-Join our community of developers creating universal apps.
+## Usage
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+1. **Login/Register**: Create an account or login to access your trips
+2. **Create a Trip**: Add a new trip with destination, dates, and traveler details
+3. **View Trip Details**: Access comprehensive information about your planned trip
+4. **Translate On-the-Go**: Use the floating translator button in the My Trips section
+
+## Project Structure
+
+```
+traveler_planner/
+├── app/                  # Main application screens
+│   ├── (tabs)/           # Tab-based navigation screens
+│   ├── auth/             # Authentication screens
+│   ├── create-trip/      # Trip creation flow
+│   └── trip-details/     # Trip details screen
+├── component/            # Reusable components
+│   ├── MyTrips/          # Trip list components
+│   ├── TripDetails/      # Trip detail components
+│   ├── CreateTrip/       # Trip creation components
+│   ├── TranslationService.jsx  # Translation component
+│   └── TranslatorButton.jsx    # Floating translator button
+├── configs/              # Configuration files
+├── constants/            # Application constants
+├── context/              # React Context providers
+└── services/             # API and service functions
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- Expo team for the excellent React Native tooling
+- Firebase for backend services
+- Google Translate for translation services
+- Pixabay for location images
