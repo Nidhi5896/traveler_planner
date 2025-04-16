@@ -3,7 +3,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Share, TextInput, Alert, ScrollView, Modal, ActivityIndicator, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import { auth, db } from '../../configs/firebaseconfig'; // Fixed path with lowercase config
-import { collection, addDoc, query, where, getDocs, doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, doc, deleteDoc, updateDoc, getDoc } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -35,6 +35,9 @@ const Profile = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+
+  // Add a new state variable for trips count
+  const [tripCount, setTripCount] = useState(0);
 
   // Load settings from AsyncStorage
   useEffect(() => {
@@ -136,18 +139,57 @@ const Profile = () => {
     }
   };
 
+  // Add a function to fetch trips count
+  const fetchTripCount = async (userEmail) => {
+    try {
+      const q = query(collection(db, 'UserTrips'), where('userEmail', '==', userEmail));
+      const querySnapshot = await getDocs(q);
+      setTripCount(querySnapshot.size);
+    } catch (error) {
+      console.error('Error fetching trip count:', error);
+    }
+  };
+
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        setUser({
-          fullName: user.displayName,
-          email: user.email,
-          photoURL: user.photoURL
-        });
-        fetchWishlist(user.email);
+    const unsubscribe = auth.onAuthStateChanged((authUser) => {
+      if (authUser) {
+        // Fetch additional user data from Firestore if needed
+        try {
+          const userRef = doc(db, 'users', authUser.email);
+          getDoc(userRef).then((docSnap) => {
+            if (docSnap.exists()) {
+              // If user document exists, use that data
+              const userData = docSnap.data();
+              setUser({
+                fullName: userData.fullName || authUser.displayName || 'User',
+                email: authUser.email,
+                photoURL: authUser.photoURL || userData.photoURL
+              });
+            } else {
+              // If no document exists, use auth data
+              setUser({
+                fullName: authUser.displayName || 'User',
+                email: authUser.email,
+                photoURL: authUser.photoURL
+              });
+            }
+          });
+          
+          // Fetch wishlist and trip count
+          fetchWishlist(authUser.email);
+          fetchTripCount(authUser.email);
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+          setUser({
+            fullName: authUser.displayName || 'User',
+            email: authUser.email,
+            photoURL: authUser.photoURL
+          });
+        }
       } else {
         setUser(null);
         setWishlist([]);
+        setTripCount(0);
       }
     });
 
@@ -912,8 +954,12 @@ const Profile = () => {
                   </View>
                 )}
               </View>
-              <Text style={[styles.userName, isDarkMode && styles.darkModeText]}>{user.fullName}</Text>
-              <Text style={[styles.userEmail, isDarkMode && styles.darkModeText]}>{user.email}</Text>
+              <Text style={[styles.userName, isDarkMode && styles.darkModeText]}>
+                {user.fullName || 'User'}
+              </Text>
+              <Text style={[styles.userEmail, isDarkMode && styles.darkModeText]}>
+                {user.email}
+              </Text>
               
               <View style={styles.statsContainer}>
                 <View style={styles.statItem}>
@@ -922,13 +968,8 @@ const Profile = () => {
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statItem}>
-                  <Text style={[styles.statNumber, isDarkMode && styles.darkModeText]}>0</Text>
+                  <Text style={[styles.statNumber, isDarkMode && styles.darkModeText]}>{tripCount}</Text>
                   <Text style={[styles.statLabel, isDarkMode && styles.darkModeText]}>Trips</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Text style={[styles.statNumber, isDarkMode && styles.darkModeText]}>0</Text>
-                  <Text style={[styles.statLabel, isDarkMode && styles.darkModeText]}>Photos</Text>
                 </View>
               </View>
             </View>
@@ -1146,7 +1187,7 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
     width: '100%',
     marginTop: 16,
     paddingTop: 16,
@@ -1156,6 +1197,7 @@ const styles = StyleSheet.create({
   statItem: {
     alignItems: 'center',
     flex: 1,
+    paddingHorizontal: 20,
   },
   statNumber: {
     fontSize: 18,
