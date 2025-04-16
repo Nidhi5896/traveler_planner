@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react';
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Share, TextInput, Alert, ScrollView, Modal, ActivityIndicator, Switch, Platform } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Share, TextInput, Alert, ScrollView, Modal, ActivityIndicator, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import { auth, db } from '../../configs/firebaseconfig'; // Fixed path with lowercase config
 import { collection, addDoc, query, where, getDocs, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ThemeContext } from './_layout';
+import { ThemeContext } from '../_layout';
 
 const Profile = () => {
   const router = useRouter();
   const { isDarkMode, setIsDarkMode, theme } = React.useContext(ThemeContext);
   const [user, setUser] = useState(null);
   const [wishlistItem, setWishlistItem] = useState('');
-  const [wishlistItems, setWishlistItems] = useState([]);
+  const [wishlist, setWishlist] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showInput, setShowInput] = useState(false);
   const [fullPageWishlist, setFullPageWishlist] = useState(false);
@@ -67,6 +67,7 @@ const Profile = () => {
   // Handle dark mode toggle
   const handleDarkModeToggle = (value) => {
     setIsDarkMode(value);
+    // Save to AsyncStorage
     saveSettings('darkMode', value);
   };
 
@@ -146,7 +147,7 @@ const Profile = () => {
         fetchWishlist(user.email);
       } else {
         setUser(null);
-        setWishlistItems([]);
+        setWishlist([]);
       }
     });
 
@@ -202,12 +203,12 @@ const Profile = () => {
         });
       });
       
-      setWishlistItems(items);
+      setWishlist(items);
       
       // Fetch images for all items
       for (const item of items) {
         const imageUrl = await fetchImage(item.item);
-        setWishlistItems(current => 
+        setWishlist(current => 
           current.map(wishItem => 
             wishItem.id === item.id 
               ? {...wishItem, imageUrl} 
@@ -260,7 +261,7 @@ const Profile = () => {
         createdAt: new Date()
       };
       
-      setWishlistItems(current => [...current, newItem]);
+      setWishlist(current => [...current, newItem]);
       setWishlistItem('');
       setShowInput(false);
       
@@ -274,11 +275,11 @@ const Profile = () => {
     }
   };
 
-  const removeFromWishlist = async (id) => {
+  const removeWishlistItem = async (id) => {
     try {
       setLoading(true);
       await deleteDoc(doc(db, 'Wishlist', id));
-      setWishlistItems(wishlistItems.filter(item => item.id !== id));
+      setWishlist(wishlist.filter(item => item.id !== id));
     } catch (error) {
       console.error('Error removing wishlist item:', error);
       Alert.alert('Error', 'Failed to remove item from wishlist');
@@ -318,26 +319,86 @@ const Profile = () => {
       >
         <View style={styles.fullPageContainer}>
           <View style={styles.fullPageHeader}>
-            <Text style={styles.fullPageTitle}>My Wishlist</Text>
-            <TouchableOpacity onPress={() => setFullPageWishlist(false)}>
-              <Ionicons name="close" size={24} color="#333" />
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={() => setFullPageWishlist(false)}
+            >
+              <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
+            <Text style={styles.fullPageTitle}>My Travel Wishlist</Text>
           </View>
-          <ScrollView style={styles.fullPageContent}>
-            {wishlistItems.length > 0 ? (
-              wishlistItems.map((item) => (
-                <View key={item.id} style={styles.wishlistItem}>
-                  <Image source={{ uri: item.imageUrl }} style={styles.wishlistItemImage} />
-                  <View style={styles.wishlistItemInfo}>
-                    <Text style={styles.wishlistItemName}>{item.item}</Text>
-                  </View>
-                  <TouchableOpacity onPress={() => removeFromWishlist(item.id)}>
-                    <Ionicons name="heart-dislike" size={24} color="#FF6B6B" />
-                  </TouchableOpacity>
-                </View>
-              ))
+          
+          <ScrollView contentContainerStyle={styles.fullPageContent}>
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#4682B4" />
+                <Text style={styles.loadingText}>Loading your wishlist...</Text>
+              </View>
             ) : (
-              <Text style={styles.emptyWishlistText}>No items in your wishlist</Text>
+              <>
+                <TouchableOpacity
+                  style={styles.addWishlistButton}
+                  onPress={() => setShowInput(!showInput)}
+                >
+                  <Text style={styles.addWishlistText}>
+                    {showInput ? "Cancel" : "Add to Wishlist"}
+                  </Text>
+                </TouchableOpacity>
+    
+                {showInput && (
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={styles.input}
+                      value={wishlistItem}
+                      onChangeText={setWishlistItem}
+                      placeholder="Add a travel wish..."
+                      placeholderTextColor="#999"
+                    />
+                    <TouchableOpacity 
+                      style={[styles.addButton, wishlistItem.trim() ? styles.addButtonActive : {}]}
+                      onPress={addWishlistItem}
+                      disabled={loading || !wishlistItem.trim()}
+                    >
+                      <Ionicons name="add-circle" size={30} color={wishlistItem.trim() ? "#4682B4" : "#ccc"} />
+                    </TouchableOpacity>
+                  </View>
+                )}
+    
+                <Text style={styles.wishlistCount}>Your wishlist items: {wishlist.length}</Text>
+    
+                {wishlist.length > 0 ? (
+                  wishlist.map(item => {
+                    // For debugging
+                    console.log('Rendering item:', item.item);
+                    
+                    return (
+                      <View key={item.id} style={styles.fullPageWishlistItem}>
+                        <Image 
+                          source={{ uri: item.imageUrl }}
+                          style={{width: '100%', height: 180}}
+                          resizeMode="cover"
+                          onError={() => console.log('Image loading error for:', item.item)}
+                        />
+                        <View style={styles.wishlistItemContent}>
+                          <Text style={styles.wishlistItemText}>{item.item}</Text>
+                          <TouchableOpacity 
+                            style={styles.removeButton}
+                            onPress={() => removeWishlistItem(item.id)}
+                          >
+                            <Ionicons name="trash-outline" size={24} color="#ff6347" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })
+                ) : (
+                  <View style={styles.emptyWishlist}>
+                    <Ionicons name="heart-outline" size={60} color="#ccc" />
+                    <Text style={styles.emptyWishlistText}>Your wishlist is empty</Text>
+                    <Text style={styles.emptyWishlistSubtext}>Add destinations or activities you would like to experience</Text>
+                  </View>
+                )}
+              </>
             )}
           </ScrollView>
         </View>
@@ -862,7 +923,7 @@ const Profile = () => {
             <Text style={[styles.wishlistTitle, isDarkMode && styles.darkModeText]}>My Travel Wishlist</Text>
           </View>
           <View style={styles.wishlistCountBadge}>
-            <Text style={styles.wishlistCountText}>{wishlistItems.length}</Text>
+            <Text style={styles.wishlistCountText}>{wishlist.length}</Text>
           </View>
         </TouchableOpacity>
 
@@ -1134,10 +1195,10 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   emptyWishlistText: {
-    textAlign: 'center',
-    fontSize: 16,
-    color: '#666',
-    marginTop: 20,
+    fontFamily: 'outfit-medium',
+    fontSize: 18,
+    color: '#999',
+    marginTop: 15,
   },
   emptyWishlistSubtext: {
     fontFamily: 'outfit',

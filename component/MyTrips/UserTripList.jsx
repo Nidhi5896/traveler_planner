@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from "react-native";
 import axios from "axios";
 import { useRouter } from "expo-router";
@@ -7,6 +7,7 @@ import PropTypes from "prop-types";
 import { Ionicons } from '@expo/vector-icons';
 import { db } from '../../configs/firebaseconfig';
 import { doc, deleteDoc } from 'firebase/firestore';
+import { ThemeContext } from '../../app/_layout';
 
 const fetchImage = async (locationName) => {
   const apiKey = '44938756-d9d562ffdaf712150c470c59e'; // Pixabay API key
@@ -29,6 +30,7 @@ export default function UserTripList({ userTrips, onTripDeleted }) {
   const [imageUrls, setImageUrls] = useState({});
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { isDarkMode, theme } = useContext(ThemeContext);
 
   useEffect(() => {
     const fetchImages = async () => {
@@ -85,7 +87,7 @@ export default function UserTripList({ userTrips, onTripDeleted }) {
   };
 
   if (!userTrips || userTrips.length === 0) {
-    return <Text>No trips available</Text>;
+    return <Text style={{ color: theme.text }}>No trips available</Text>;
   }
 
   return (
@@ -95,7 +97,10 @@ export default function UserTripList({ userTrips, onTripDeleted }) {
         const imageUrl = imageUrls[trip.docId];
 
         return (
-          <View key={trip.docId || index} style={styles.tripCard}>
+          <View key={trip.docId || index} style={[
+            styles.tripCard, 
+            isDarkMode && { backgroundColor: theme.card }
+          ]}>
             <TouchableOpacity 
               style={styles.tripContent}
               onPress={() => router.push({ 
@@ -104,7 +109,7 @@ export default function UserTripList({ userTrips, onTripDeleted }) {
               })}
             >
               {loading ? (
-                <ActivityIndicator size="large" color="#007AFF" />
+                <ActivityIndicator size="large" color={theme.tabBarActive} />
               ) : (
                 <Image 
                   source={imageUrl ? { uri: imageUrl } : require('./../../assets/images/p1.jpg')} 
@@ -112,20 +117,20 @@ export default function UserTripList({ userTrips, onTripDeleted }) {
                 />
               )}
               <View style={styles.infoContainer}>
-                <Text style={styles.location}>
+                <Text style={[styles.location, isDarkMode && { color: theme.text }]}>
                   🌍 {tripData.locationInfo.name}
                 </Text>
-                <Text style={styles.dates}>
+                <Text style={[styles.dates, isDarkMode && { color: '#aaa' }]}>
                   📅 {moment(trip.startDate).format("MMM Do")} -{" "}
                   {moment(trip.endDate).format("MMM Do, YYYY")}
                 </Text>
-                <Text style={styles.travelers}>
+                <Text style={[styles.travelers, isDarkMode && { color: '#aaa' }]}>
                   🚌 {tripData.traveler.title} - {tripData.traveler.desc}
                 </Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={styles.deleteButton}
+              style={[styles.deleteButton, isDarkMode && { backgroundColor: 'rgba(50, 50, 50, 0.9)' }]}
               onPress={() => handleDeleteTrip(trip.docId)}
             >
               <Ionicons name="trash-outline" size={24} color="#FF3B30" />

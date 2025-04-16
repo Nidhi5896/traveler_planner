@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, StyleSheet, Image, ActivityIndicator, ScrollView, TextInput, TouchableOpacity } from 'react-native';
 import axios from 'axios';
 import * as WebBrowser from 'expo-web-browser';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { ThemeContext } from '../_layout';
 
 const fetchImage = async (locationName) => {
   const apiKey = '44938756-d9d562ffdaf712150c470c59e';
@@ -201,6 +202,7 @@ const Discover = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchedPlace, setSearchedPlace] = useState(null);
+  const { isDarkMode, theme } = useContext(ThemeContext);
 
   useEffect(() => {
     // Initialize with popular places
@@ -242,21 +244,26 @@ const Discover = () => {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#6C63FF" />
+      <View style={[styles.centered, {backgroundColor: theme.background}]}>
+        <ActivityIndicator size="large" color={theme.tabBarActive} />
       </View>
     );
   }
 
+  const gradientColors = isDarkMode 
+    ? ['#121212', '#1a1a1a', '#232323'] 
+    : ['#4c669f', '#3b5998', '#192f6a'];
+
   return (
-    <LinearGradient colors={['#4c669f', '#3b5998', '#192f6a']} style={styles.container}>
+    <LinearGradient colors={gradientColors} style={styles.container}>
       <View style={styles.searchContainer}>
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, isDarkMode && {backgroundColor: 'rgba(255, 255, 255, 0.1)'}]}
           placeholder="Discover a new place"
-          placeholderTextColor="#A0A0A0"
+          placeholderTextColor={isDarkMode ? "#888" : "#A0A0A0"}
           value={searchQuery}
           onChangeText={setSearchQuery}
+          color={theme.text}
         />
         <TouchableOpacity style={styles.searchButton} onPress={searchNewPlace}>
           <Ionicons name="search" size={24} color="#fff" />
