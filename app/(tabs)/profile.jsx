@@ -3,7 +3,8 @@ import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Share, TextInput, Alert, ScrollView, Modal, ActivityIndicator, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import { auth, db } from '../../configs/firebaseconfig'; // Fixed path with lowercase config
-import { collection, addDoc, query, where, getDocs, doc, deleteDoc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, doc, deleteDoc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
+import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -114,16 +115,47 @@ const Profile = () => {
     setChangingPassword(true);
     
     try {
-      // In a real app, you would verify the current password and update it
-      // For this example, we'll just simulate the process
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const currentUser = auth.currentUser;
       
-      // Update user document in Firestore
+      if (!currentUser) {
+        Alert.alert('Error', 'You must be logged in to change your password');
+        setChangingPassword(false);
+        return;
+      }
+      
+      // Create a credential with the user's email and current password
+      const credential = EmailAuthProvider.credential(
+        currentUser.email,
+        currentPassword
+      );
+      
+      // Re-authenticate the user
+      await reauthenticateWithCredential(currentUser, credential);
+      
+      // Update the password
+      await updatePassword(currentUser, newPassword);
+      
+      // Update or create user document in Firestore
       if (user && user.email) {
         const userRef = doc(db, 'users', user.email);
-        await updateDoc(userRef, {
-          passwordUpdatedAt: new Date()
-        });
+        
+        // Check if document exists
+        const docSnapshot = await getDoc(userRef);
+        
+        if (docSnapshot.exists()) {
+          // Update existing document
+          await updateDoc(userRef, {
+            passwordUpdatedAt: new Date()
+          });
+        } else {
+          // Create new document if it doesn't exist
+          await setDoc(userRef, {
+            email: user.email,
+            fullName: user.fullName || currentUser.displayName || 'User',
+            passwordUpdatedAt: new Date(),
+            createdAt: new Date()
+          });
+        }
       }
       
       Alert.alert('Success', 'Password updated successfully');
@@ -133,7 +165,17 @@ const Profile = () => {
       setShowSecurityModal(false);
     } catch (error) {
       console.error('Error changing password:', error);
-      Alert.alert('Error', 'Failed to update password. Please try again.');
+      
+      // Provide more specific error messages based on Firebase error codes
+      if (error.code === 'auth/wrong-password') {
+        Alert.alert('Error', 'The current password you entered is incorrect.');
+      } else if (error.code === 'auth/too-many-requests') {
+        Alert.alert('Error', 'Too many unsuccessful attempts. Please try again later.');
+      } else if (error.code === 'auth/requires-recent-login') {
+        Alert.alert('Error', 'This operation requires a recent login. Please log out and log back in before retrying.');
+      } else {
+        Alert.alert('Error', 'Failed to update password: ' + error.message);
+      }
     } finally {
       setChangingPassword(false);
     }
@@ -344,7 +386,7 @@ const Profile = () => {
   const handleShare = async () => {
     try {
       await Share.share({
-        message: 'Check out this amazing app developed by Pushkal Vashishtha! [App Link]',
+        message: 'Check out this amazing app developed by Nitya, Nidhi, Raju! [App Link]',
       });
     } catch (error) {
       console.error('Error sharing the app:', error);
@@ -752,53 +794,77 @@ const Profile = () => {
         onRequestClose={() => setShowPrivacyModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, isDarkMode && styles.darkModeModalContent]}>
+          <View style={[
+            styles.enhancedModalContent, 
+            isDarkMode && styles.darkModeModalContent
+          ]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, isDarkMode && styles.darkModeText]}>Privacy Settings</Text>
-              <TouchableOpacity onPress={() => setShowPrivacyModal(false)}>
-                <Ionicons name="close" size={24} color="#4682B4" />
+              <Text style={[styles.enhancedModalTitle, isDarkMode && styles.darkModeText]}>Privacy Settings</Text>
+              <TouchableOpacity 
+                style={styles.enhancedCloseButton}
+                onPress={() => setShowPrivacyModal(false)}
+              >
+                <Ionicons name="close" size={24} color={isDarkMode ? "#f0f0f0" : "#333"} />
               </TouchableOpacity>
             </View>
             
-            <View style={styles.privacyContent}>
-              <Text style={[styles.privacyText, isDarkMode && styles.darkModeText]}>
+            <ScrollView 
+              style={styles.enhancedModalScrollView}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={[styles.enhancedModalText, isDarkMode && styles.darkModeText]}>
                 Your privacy is important to us. We collect and process your data in accordance with our Privacy Policy.
               </Text>
               
-              <View style={styles.privacySection}>
-                <Text style={[styles.privacySectionTitle, isDarkMode && styles.darkModeText]}>
-                  Data Collection
-                </Text>
-                <Text style={[styles.privacySectionText, isDarkMode && styles.darkModeText]}>
-                  We collect information that you provide directly to us, including your name, email address, and travel preferences.
-                </Text>
+              <View style={styles.enhancedModalSection}>
+                <View style={styles.sectionIcon}>
+                  <Ionicons name="document-text-outline" size={24} color="#4682B4" />
+                </View>
+                <View style={styles.sectionContent}>
+                  <Text style={[styles.enhancedSectionTitle, isDarkMode && styles.darkModeText]}>
+                    Data Collection
+                  </Text>
+                  <Text style={[styles.enhancedSectionText, isDarkMode && styles.darkModeText]}>
+                    We collect information that you provide directly to us, including your name, email address, and travel preferences.
+                  </Text>
+                </View>
               </View>
               
-              <View style={styles.privacySection}>
-                <Text style={[styles.privacySectionTitle, isDarkMode && styles.darkModeText]}>
-                  Data Usage
-                </Text>
-                <Text style={[styles.privacySectionText, isDarkMode && styles.darkModeText]}>
-                  We use your data to provide and improve our services, personalize your experience, and communicate with you.
-                </Text>
+              <View style={styles.enhancedModalSection}>
+                <View style={styles.sectionIcon}>
+                  <Ionicons name="analytics-outline" size={24} color="#4682B4" />
+                </View>
+                <View style={styles.sectionContent}>
+                  <Text style={[styles.enhancedSectionTitle, isDarkMode && styles.darkModeText]}>
+                    Data Usage
+                  </Text>
+                  <Text style={[styles.enhancedSectionText, isDarkMode && styles.darkModeText]}>
+                    We use your data to provide and improve our services, personalize your experience, and communicate with you.
+                  </Text>
+                </View>
               </View>
               
-              <View style={styles.privacySection}>
-                <Text style={[styles.privacySectionTitle, isDarkMode && styles.darkModeText]}>
-                  Data Protection
-                </Text>
-                <Text style={[styles.privacySectionText, isDarkMode && styles.darkModeText]}>
-                  We implement appropriate security measures to protect your personal information from unauthorized access.
-                </Text>
+              <View style={styles.enhancedModalSection}>
+                <View style={styles.sectionIcon}>
+                  <Ionicons name="shield-checkmark-outline" size={24} color="#4682B4" />
+                </View>
+                <View style={styles.sectionContent}>
+                  <Text style={[styles.enhancedSectionTitle, isDarkMode && styles.darkModeText]}>
+                    Data Protection
+                  </Text>
+                  <Text style={[styles.enhancedSectionText, isDarkMode && styles.darkModeText]}>
+                    We implement appropriate security measures to protect your personal information from unauthorized access.
+                  </Text>
+                </View>
               </View>
-              
-              <TouchableOpacity 
-                style={styles.privacyButton}
-                onPress={() => setShowPrivacyModal(false)}
-              >
-                <Text style={styles.privacyButtonText}>Close</Text>
-              </TouchableOpacity>
-            </View>
+            </ScrollView>
+            
+            <TouchableOpacity 
+              style={customStyles.enhancedModalButton}
+              onPress={() => setShowPrivacyModal(false)}
+            >
+              <Text style={styles.enhancedModalButtonText}>Close</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -814,53 +880,80 @@ const Profile = () => {
         onRequestClose={() => setShowHelpModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, isDarkMode && styles.darkModeModalContent]}>
+          <View style={[
+            styles.enhancedModalContent, 
+            isDarkMode && styles.darkModeModalContent
+          ]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, isDarkMode && styles.darkModeText]}>Help & Support</Text>
-              <TouchableOpacity onPress={() => setShowHelpModal(false)}>
-                <Ionicons name="close" size={24} color="#4682B4" />
+              <Text style={[styles.enhancedModalTitle, isDarkMode && styles.darkModeText]}>Help & Support</Text>
+              <TouchableOpacity 
+                style={styles.enhancedCloseButton}
+                onPress={() => setShowHelpModal(false)}
+              >
+                <Ionicons name="close" size={24} color={isDarkMode ? "#f0f0f0" : "#333"} />
               </TouchableOpacity>
             </View>
             
-            <View style={styles.helpContent}>
-              <Text style={[styles.helpText, isDarkMode && styles.darkModeText]}>
+            <ScrollView 
+              style={styles.enhancedModalScrollView}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={[styles.enhancedModalText, isDarkMode && styles.darkModeText]}>
                 Need help with the app? Here are some resources to assist you:
               </Text>
               
-              <View style={styles.helpSection}>
-                <Text style={[styles.helpSectionTitle, isDarkMode && styles.darkModeText]}>
-                  Frequently Asked Questions
-                </Text>
-                <Text style={[styles.helpSectionText, isDarkMode && styles.darkModeText]}>
-                  Find answers to common questions about using the app, managing your account, and more.
-                </Text>
+              <View style={styles.enhancedModalSection}>
+                <View style={styles.sectionIcon}>
+                  <Ionicons name="help-circle-outline" size={24} color="#4682B4" />
+                </View>
+                <View style={styles.sectionContent}>
+                  <Text style={[styles.enhancedSectionTitle, isDarkMode && styles.darkModeText]}>
+                    Frequently Asked Questions
+                  </Text>
+                  <Text style={[styles.enhancedSectionText, isDarkMode && styles.darkModeText]}>
+                    Find answers to common questions about using the app, managing your account, and more.
+                  </Text>
+                </View>
               </View>
               
-              <View style={styles.helpSection}>
-                <Text style={[styles.helpSectionTitle, isDarkMode && styles.darkModeText]}>
-                  Contact Support
-                </Text>
-                <Text style={[styles.helpSectionText, isDarkMode && styles.darkModeText]}>
-                  Our support team is available to help you with any issues or questions you may have.
-                </Text>
+              <View style={styles.enhancedModalSection}>
+                <View style={styles.sectionIcon}>
+                  <Ionicons name="mail-outline" size={24} color="#4682B4" />
+                </View>
+                <View style={styles.sectionContent}>
+                  <Text style={[styles.enhancedSectionTitle, isDarkMode && styles.darkModeText]}>
+                    Contact Support
+                  </Text>
+                  <Text style={[styles.enhancedSectionText, isDarkMode && styles.darkModeText]}>
+                    Our support team is available to help you with any issues or questions you may have.
+                  </Text>
+                  <TouchableOpacity style={customStyles.contactButton}>
+                    <Text style={customStyles.contactButtonText}>Email Support</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
               
-              <View style={styles.helpSection}>
-                <Text style={[styles.helpSectionTitle, isDarkMode && styles.darkModeText]}>
-                  Tutorials
-                </Text>
-                <Text style={[styles.helpSectionText, isDarkMode && styles.darkModeText]}>
-                  Learn how to use the app's features with our step-by-step tutorials and guides.
-                </Text>
+              <View style={styles.enhancedModalSection}>
+                <View style={styles.sectionIcon}>
+                  <Ionicons name="book-outline" size={24} color="#4682B4" />
+                </View>
+                <View style={styles.sectionContent}>
+                  <Text style={[styles.enhancedSectionTitle, isDarkMode && styles.darkModeText]}>
+                    Tutorials
+                  </Text>
+                  <Text style={[styles.enhancedSectionText, isDarkMode && styles.darkModeText]}>
+                    Learn how to use the app's features with our step-by-step tutorials and guides.
+                  </Text>
+                </View>
               </View>
-              
-              <TouchableOpacity 
-                style={styles.helpButton}
-                onPress={() => setShowHelpModal(false)}
-              >
-                <Text style={styles.helpButtonText}>Close</Text>
-              </TouchableOpacity>
-            </View>
+            </ScrollView>
+            
+            <TouchableOpacity 
+              style={customStyles.enhancedModalButton}
+              onPress={() => setShowHelpModal(false)}
+            >
+              <Text style={styles.enhancedModalButtonText}>Close</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -876,15 +969,25 @@ const Profile = () => {
         onRequestClose={() => setShowAboutModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, isDarkMode && styles.darkModeModalContent]}>
+          <View style={[
+            styles.enhancedModalContent, 
+            isDarkMode && styles.darkModeModalContent
+          ]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, isDarkMode && styles.darkModeText]}>About</Text>
-              <TouchableOpacity onPress={() => setShowAboutModal(false)}>
-                <Ionicons name="close" size={24} color="#4682B4" />
+              <Text style={[styles.enhancedModalTitle, isDarkMode && styles.darkModeText]}>About</Text>
+              <TouchableOpacity 
+                style={styles.enhancedCloseButton}
+                onPress={() => setShowAboutModal(false)}
+              >
+                <Ionicons name="close" size={24} color={isDarkMode ? "#f0f0f0" : "#333"} />
               </TouchableOpacity>
             </View>
             
-            <View style={styles.aboutContent}>
+            <ScrollView 
+              style={styles.enhancedModalScrollView}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.aboutScrollContent}
+            >
               <Image 
                 source={require('../../assets/images/icon.png')} 
                 style={styles.aboutLogo} 
@@ -894,37 +997,115 @@ const Profile = () => {
                 Travel App
               </Text>
               
-              <Text style={[styles.aboutVersion, isDarkMode && styles.darkModeText]}>
-                Version 1.0.0
-              </Text>
-              
-              <Text style={[styles.aboutDescription, isDarkMode && styles.darkModeText]}>
-                A comprehensive travel app that helps you discover new places, plan your trips, and manage your travel wishlist.
-              </Text>
-              
-              <View style={styles.aboutSection}>
-                <Text style={[styles.aboutSectionTitle, isDarkMode && styles.darkModeText]}>
-                  Features
-                </Text>
-                <Text style={[styles.aboutSectionText, isDarkMode && styles.darkModeText]}>
-                  • Discover popular travel destinations{'\n'}
-                  • Create and manage your travel wishlist{'\n'}
-                  • Plan your trips with detailed itineraries{'\n'}
-                  • Share your travel experiences with friends
+              <View style={customStyles.versionBadge}>
+                <Text style={customStyles.versionText}>
+                  Version 1.0.0
                 </Text>
               </View>
               
-              <TouchableOpacity 
-                style={styles.aboutButton}
-                onPress={() => setShowAboutModal(false)}
-              >
-                <Text style={styles.aboutButtonText}>Close</Text>
-              </TouchableOpacity>
-            </View>
+              <Text style={[styles.enhancedModalText, isDarkMode && styles.darkModeText]}>
+                A comprehensive travel app that helps you discover new places, plan your trips, and manage your travel wishlist.
+              </Text>
+              
+              <View style={styles.enhancedModalSection}>
+                <View style={styles.sectionIcon}>
+                  <Ionicons name="star-outline" size={24} color="#4682B4" />
+                </View>
+                <View style={styles.sectionContent}>
+                  <Text style={[styles.enhancedSectionTitle, isDarkMode && styles.darkModeText]}>
+                    Features
+                  </Text>
+                  <View style={styles.featuresList}>
+                    <View style={styles.featureItem}>
+                      <Ionicons name="compass" size={18} color="#4682B4" />
+                      <Text style={[styles.featureText, isDarkMode && styles.darkModeText]}>
+                        Discover popular travel destinations
+                      </Text>
+                    </View>
+                    <View style={styles.featureItem}>
+                      <Ionicons name="heart" size={18} color="#4682B4" />
+                      <Text style={[styles.featureText, isDarkMode && styles.darkModeText]}>
+                        Create and manage your travel wishlist
+                      </Text>
+                    </View>
+                    <View style={styles.featureItem}>
+                      <Ionicons name="map" size={18} color="#4682B4" />
+                      <Text style={[styles.featureText, isDarkMode && styles.darkModeText]}>
+                        Plan your trips with detailed itineraries
+                      </Text>
+                    </View>
+                    <View style={styles.featureItem}>
+                      <Ionicons name="share-social" size={18} color="#4682B4" />
+                      <Text style={[styles.featureText, isDarkMode && styles.darkModeText]}>
+                        Share your travel experiences with friends
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+              
+              <View style={styles.enhancedModalSection}>
+                <View style={styles.sectionIcon}>
+                  <Ionicons name="code-outline" size={24} color="#4682B4" />
+                </View>
+                <View style={styles.sectionContent}>
+                  <Text style={[styles.enhancedSectionTitle, isDarkMode && styles.darkModeText]}>
+                    Development
+                  </Text>
+                  <Text style={[styles.enhancedSectionText, isDarkMode && styles.darkModeText]}>
+                    Developed by Nitya, Nidhi, Raju using React Native and Expo.
+                  </Text>
+                </View>
+              </View>
+            </ScrollView>
+            
+            <TouchableOpacity 
+              style={customStyles.enhancedModalButton}
+              onPress={() => setShowAboutModal(false)}
+            >
+              <Text style={styles.enhancedModalButtonText}>Close</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
     );
+  };
+
+  // Update the custom styles to use static colors instead of theme references
+  const customStyles = {
+    enhancedModalButton: {
+      backgroundColor: '#4682B4',
+      paddingVertical: 16,
+      alignItems: 'center',
+      borderBottomLeftRadius: 20,
+      borderBottomRightRadius: 20,
+    },
+    contactButton: {
+      backgroundColor: 'rgba(70, 130, 180, 0.1)',
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      alignSelf: 'flex-start',
+      marginTop: 10,
+      borderWidth: 1,
+      borderColor: '#4682B4',
+    },
+    contactButtonText: {
+      color: '#4682B4',
+      fontWeight: '600',
+    },
+    versionBadge: {
+      backgroundColor: 'rgba(70, 130, 180, 0.1)',
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      borderRadius: 16,
+      marginVertical: 12,
+    },
+    versionText: {
+      color: '#4682B4',
+      fontSize: 14,
+      fontWeight: '600',
+    },
   };
 
   return (
@@ -1830,6 +2011,116 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  enhancedModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    width: '90%',
+    maxHeight: '80%',
+    padding: 0,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  enhancedModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  enhancedCloseButton: {
+    padding: 8,
+    borderRadius: 20,
+  },
+  enhancedModalScrollView: {
+    padding: 20,
+    maxHeight: '75%',
+  },
+  enhancedModalText: {
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 24,
+    color: '#333',
+  },
+  enhancedModalSection: {
+    flexDirection: 'row',
+    marginBottom: 24,
+  },
+  sectionIcon: {
+    marginRight: 16,
+    marginTop: 2,
+  },
+  sectionContent: {
+    flex: 1,
+  },
+  enhancedSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
+  },
+  enhancedSectionText: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#333',
+  },
+  enhancedModalButton: {
+    backgroundColor: '#4682B4',
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
+  enhancedModalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  contactButton: {
+    backgroundColor: 'rgba(70, 130, 180, 0.1)',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#4682B4',
+  },
+  contactButtonText: {
+    color: '#4682B4',
+    fontWeight: '600',
+  },
+  aboutScrollContent: {
+    alignItems: 'center',
+    paddingBottom: 20,
+  },
+  versionBadge: {
+    backgroundColor: 'rgba(70, 130, 180, 0.1)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    marginVertical: 12,
+  },
+  versionText: {
+    color: '#4682B4',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  featuresList: {
+    marginTop: 8,
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  featureText: {
+    marginLeft: 10,
+    fontSize: 15,
+    color: '#333',
+    flex: 1,
   },
 });
 
