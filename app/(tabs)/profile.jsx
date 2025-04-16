@@ -900,39 +900,155 @@ const Profile = () => {
       >
         {user && (
           <View style={[styles.userIntroContainer, isDarkMode && styles.darkModeCard]}>
-            {user.photoURL ? (
-              <Image source={{ uri: user.photoURL }} style={styles.userImage} />
-            ) : (
-              <Image 
-                source={require('../../assets/images/icon.png')} 
-                style={styles.userImage} 
-              />
-            )}
-            <Text style={[styles.userName, isDarkMode && styles.darkModeText]}>{user.fullName}</Text>
-            <Text style={[styles.userEmail, isDarkMode && styles.darkModeText]}>{user.email}</Text>
+            <View style={[styles.profileGradient, {backgroundColor: isDarkMode ? '#1a1a1a' : '#e6f2ff'}]}>
+              <View style={styles.profileImageContainer}>
+                {user.photoURL ? (
+                  <Image source={{ uri: user.photoURL }} style={styles.userImage} />
+                ) : (
+                  <View style={styles.profileInitialsContainer}>
+                    <Text style={styles.profileInitials}>
+                      {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text style={[styles.userName, isDarkMode && styles.darkModeText]}>{user.fullName}</Text>
+              <Text style={[styles.userEmail, isDarkMode && styles.darkModeText]}>{user.email}</Text>
+              
+              <View style={styles.statsContainer}>
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumber, isDarkMode && styles.darkModeText]}>{wishlist.length}</Text>
+                  <Text style={[styles.statLabel, isDarkMode && styles.darkModeText]}>Wishlist</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumber, isDarkMode && styles.darkModeText]}>0</Text>
+                  <Text style={[styles.statLabel, isDarkMode && styles.darkModeText]}>Trips</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumber, isDarkMode && styles.darkModeText]}>0</Text>
+                  <Text style={[styles.statLabel, isDarkMode && styles.darkModeText]}>Photos</Text>
+                </View>
+              </View>
+            </View>
           </View>
         )}
 
-        {/* Wishlist Icon and Header */}
-        <TouchableOpacity 
-          style={[styles.wishlistHeader, isDarkMode && styles.darkModeCard]}
-          onPress={() => setFullPageWishlist(true)}
-        >
-          <View style={styles.wishlistHeaderContent}>
-            <Ionicons name="heart" size={24} color="#4682B4" />
-            <Text style={[styles.wishlistTitle, isDarkMode && styles.darkModeText]}>My Travel Wishlist</Text>
-          </View>
-          <View style={styles.wishlistCountBadge}>
-            <Text style={styles.wishlistCountText}>{wishlist.length}</Text>
-          </View>
-        </TouchableOpacity>
-
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-            <Text style={styles.signOutButtonText}>Sign Out</Text>
+        {/* Quick Actions */}
+        <View style={[styles.quickActionsContainer, isDarkMode && styles.darkModeCard]}>
+          <TouchableOpacity 
+            style={[styles.quickActionButton, isDarkMode && styles.darkModeQuickAction]}
+            onPress={() => setFullPageWishlist(true)}
+          >
+            <View style={[styles.quickActionIcon, {backgroundColor: 'rgba(255, 99, 71, 0.2)'}]}>
+              <Ionicons name="heart" size={22} color="#ff6347" />
+            </View>
+            <Text style={[styles.quickActionText, isDarkMode && styles.darkModeText]}>Wishlist</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-            <Text style={styles.shareButtonText}>Share App</Text>
+          
+          <TouchableOpacity 
+            style={[styles.quickActionButton, isDarkMode && styles.darkModeQuickAction]}
+            onPress={() => router.push('/create-trip/search-place')}
+          >
+            <View style={[styles.quickActionIcon, {backgroundColor: 'rgba(70, 130, 180, 0.2)'}]}>
+              <Ionicons name="add-circle" size={22} color="#4682B4" />
+            </View>
+            <Text style={[styles.quickActionText, isDarkMode && styles.darkModeText]}>New Trip</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.quickActionButton, isDarkMode && styles.darkModeQuickAction]}
+            onPress={handleShare}
+          >
+            <View style={[styles.quickActionIcon, {backgroundColor: 'rgba(76, 217, 100, 0.2)'}]}>
+              <Ionicons name="share-social" size={22} color="#4CD964" />
+            </View>
+            <Text style={[styles.quickActionText, isDarkMode && styles.darkModeText]}>Share</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Wishlist Section */}
+        <View style={[styles.sectionContainer, isDarkMode && styles.darkModeCard]}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleContainer}>
+              <Ionicons name="heart" size={22} color="#ff6347" />
+              <Text style={[styles.sectionTitle, isDarkMode && styles.darkModeText]}>My Travel Wishlist</Text>
+            </View>
+            <TouchableOpacity onPress={() => setFullPageWishlist(true)}>
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {loading ? (
+            <ActivityIndicator size="large" color={theme.tabBarActive} style={{marginVertical: 20}} />
+          ) : wishlist.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.wishlistPreviewContainer}
+            >
+              {wishlist.slice(0, 5).map(item => (
+                <TouchableOpacity 
+                  key={item.id} 
+                  style={styles.wishlistPreviewItem}
+                  onPress={() => setFullPageWishlist(true)}
+                >
+                  <Image 
+                    source={{ uri: item.imageUrl }}
+                    style={styles.wishlistPreviewImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.wishlistPreviewOverlay}>
+                    <Text style={styles.wishlistPreviewText} numberOfLines={1}>{item.item}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+              {wishlist.length > 5 && (
+                <TouchableOpacity 
+                  style={styles.moreWishlistButton}
+                  onPress={() => setFullPageWishlist(true)}
+                >
+                  <Text style={styles.moreWishlistText}>+{wishlist.length - 5} more</Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+          ) : (
+            <View style={styles.emptyStateContainer}>
+              <Ionicons name="heart-outline" size={40} color={isDarkMode ? "#555" : "#ccc"} />
+              <Text style={[styles.emptyStateText, isDarkMode && styles.darkModeText]}>
+                Add destinations to your wishlist
+              </Text>
+              <TouchableOpacity 
+                style={styles.addWishlistButton}
+                onPress={() => setFullPageWishlist(true)}
+              >
+                <Text style={styles.addWishlistText}>Add Now</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        {/* Bottom Actions */}
+        <View style={styles.bottomActionsContainer}>
+          <TouchableOpacity 
+            style={[styles.settingsButton, isDarkMode && styles.darkModeButton]}
+            onPress={() => setShowSettings(true)}
+          >
+            <Ionicons name="settings-outline" size={20} color={isDarkMode ? "#f0f0f0" : "#333"} />
+            <Text style={[styles.actionButtonText, isDarkMode && styles.darkModeText]}>
+              Settings
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.logoutButton, isDarkMode && styles.darkModeButtonAccent]}
+            onPress={handleSignOut}
+          >
+            <Ionicons name="log-out-outline" size={20} color="#fff" />
+            <Text style={styles.logoutButtonText}>
+              Sign Out
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -952,90 +1068,300 @@ const Profile = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
   },
   contentContainer: {
-    padding: 20,
+    padding: 16,
     paddingBottom: 40,
   },
-  title: {
-    fontFamily: 'outfit-bold',
-    fontSize: 35,
-    marginBottom: 20,
-    marginTop: 40,
-    textAlign: 'center',
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 15,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
     color: '#333',
   },
+  settingsIconButton: {
+    padding: 8,
+    borderRadius: 20,
+  },
   userIntroContainer: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  profileGradient: {
+    padding: 24,
     alignItems: 'center',
-    marginBottom: 20,
-    padding: 15,
+  },
+  profileImageContainer: {
+    marginBottom: 16,
+  },
+  userImage: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 3,
+    borderColor: '#fff',
+  },
+  profileInitialsContainer: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#4682B4',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#fff',
+  },
+  profileInitials: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  userName: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 4,
+    color: '#333',
+  },
+  userEmail: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 16,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  statDivider: {
+    width: 1,
+    height: '100%',
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  },
+  quickActionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     backgroundColor: '#fff',
-    borderRadius: 15,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 24,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 3,
   },
-  userImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 10,
-    borderColor: '#ddd',
-    borderWidth: 2,
+  quickActionButton: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
   },
-  userName: {
-    fontFamily: 'outfit-bold',
-    fontSize: 20,
-    marginBottom: 5,
-    color: '#333',
+  quickActionIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  userEmail: {
-    fontFamily: 'outfit',
-    fontSize: 16,
-    color: '#666',
+  quickActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#444',
   },
-  wishlistHeader: {
+  sectionContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    marginBottom: 16,
   },
-  wishlistHeaderContent: {
+  sectionTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  wishlistTitle: {
+  sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginLeft: 10,
+    marginLeft: 8,
+    color: '#333',
+  },
+  seeAllText: {
+    fontSize: 14,
+    fontWeight: '600',
     color: '#4682B4',
   },
-  wishlistCountBadge: {
-    backgroundColor: '#4682B4',
-    borderRadius: 15,
-    width: 30,
-    height: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
+  wishlistPreviewContainer: {
+    paddingVertical: 8,
   },
-  wishlistCountText: {
+  wishlistPreviewItem: {
+    width: 120,
+    height: 160,
+    borderRadius: 12,
+    marginRight: 12,
+    overflow: 'hidden',
+  },
+  wishlistPreviewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  wishlistPreviewOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  wishlistPreviewText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
+  },
+  moreWishlistButton: {
+    width: 120,
+    height: 160,
+    borderRadius: 12,
+    backgroundColor: 'rgba(70, 130, 180, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(70, 130, 180, 0.3)',
+    borderStyle: 'dashed',
+  },
+  moreWishlistText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4682B4',
+  },
+  emptyStateContainer: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyStateText: {
+    marginTop: 12,
+    marginBottom: 16,
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+  },
+  addWishlistButton: {
+    backgroundColor: '#4682B4',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+  },
+  addWishlistText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  bottomActionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  settingsButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f0f0f0',
+    padding: 14,
+    borderRadius: 12,
+    marginRight: 10,
+  },
+  actionButtonText: {
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  logoutButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ff6347',
+    padding: 14,
+    borderRadius: 12,
+    marginLeft: 10,
+  },
+  logoutButtonText: {
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  darkModeContainer: {
+    backgroundColor: '#121212',
+  },
+  darkModeCard: {
+    backgroundColor: '#1e1e1e',
+  },
+  darkModeText: {
+    color: '#f0f0f0',
+  },
+  darkModeQuickAction: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  darkModeButton: {
+    backgroundColor: '#2c2c2c',
+  },
+  darkModeButtonAccent: {
+    backgroundColor: '#e63a2d',
   },
   fullPageContainer: {
     flex: 1,
@@ -1207,111 +1533,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 5,
     paddingHorizontal: 40,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  signOutButton: {
-    backgroundColor: '#ff6347',
-    paddingVertical: 15,
-    borderRadius: 10,
-    flex: 1,
-    marginRight: 10,
-    alignItems: 'center',
-  },
-  signOutButtonText: {
-    color: '#fff',
-    fontFamily: 'outfit-medium',
-    fontSize: 16,
-  },
-  shareButton: {
-    backgroundColor: '#4682B4',
-    paddingVertical: 15,
-    borderRadius: 10,
-    flex: 1,
-    marginLeft: 10,
-    alignItems: 'center',
-  },
-  shareButtonText: {
-    color: '#fff',
-    fontFamily: 'outfit-medium',
-    fontSize: 16,
-  },
-  footer: {
-    fontFamily: 'outfit-medium',
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 20,
-    color: '#888',
-  },
-  addWishlistButton: {
-    backgroundColor: '#4682B4',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  addWishlistText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  colorBackupText: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    padding: 20,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: {width: -1, height: 1},
-    textShadowRadius: 10,
-  },
-  darkModeContainer: {
-    backgroundColor: '#121212',
-  },
-  darkModeCard: {
-    backgroundColor: '#1e1e1e',
-  },
-  darkModeText: {
-    color: '#f0f0f0',
-  },
-  darkModeSettingItem: {
-    borderBottomColor: '#333',
-  },
-  darkModeModalContent: {
-    backgroundColor: '#1e1e1e',
-  },
-  darkModeModalOption: {
-    borderBottomColor: '#333',
-  },
-  darkModeInput: {
-    backgroundColor: '#333',
-    color: '#f0f0f0',
-  },
-  settingsButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  settingsButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  settingsButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 10,
-    color: '#4682B4',
   },
   settingsContainer: {
     flex: 1,
@@ -1566,24 +1787,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 15,
-    backgroundColor: 'transparent',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  settingsIconButton: {
-    padding: 8,
-    borderRadius: 20,
   },
 });
 
