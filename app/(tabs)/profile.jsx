@@ -397,11 +397,15 @@ const Profile = () => {
                       placeholderTextColor="#999"
                     />
                     <TouchableOpacity 
-                      style={[styles.addButton, wishlistItem.trim() ? styles.addButtonActive : {}]}
+                      style={styles.addButton}
                       onPress={addWishlistItem}
                       disabled={loading || !wishlistItem.trim()}
                     >
-                      <Ionicons name="add-circle" size={30} color={wishlistItem.trim() ? "#4682B4" : "#ccc"} />
+                      <Ionicons 
+                        name="add-circle" 
+                        size={30} 
+                        color={wishlistItem.trim() ? "#4682B4" : "#ccc"} 
+                      />
                     </TouchableOpacity>
                   </View>
                 )}
@@ -971,6 +975,11 @@ const Profile = () => {
                   <Text style={[styles.statNumber, isDarkMode && styles.darkModeText]}>{tripCount}</Text>
                   <Text style={[styles.statLabel, isDarkMode && styles.darkModeText]}>Trips</Text>
                 </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumber, isDarkMode && styles.darkModeText]}>0</Text>
+                  <Text style={[styles.statLabel, isDarkMode && styles.darkModeText]}>Photos</Text>
+                </View>
               </View>
             </View>
           </View>
@@ -1187,7 +1196,7 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-around',
     width: '100%',
     marginTop: 16,
     paddingTop: 16,
@@ -1197,7 +1206,6 @@ const styles = StyleSheet.create({
   statItem: {
     alignItems: 'center',
     flex: 1,
-    paddingHorizontal: 20,
   },
   statNumber: {
     fontSize: 18,
@@ -1480,10 +1488,7 @@ const styles = StyleSheet.create({
   addButton: {
     marginLeft: 10,
     padding: 5,
-  },
-  addButtonActive: {
-    backgroundColor: '#4682B4',
-    borderRadius: 20,
+    backgroundColor: 'transparent',
   },
   wishlistCount: {
     fontSize: 16,
