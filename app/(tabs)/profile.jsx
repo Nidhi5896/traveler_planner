@@ -975,11 +975,6 @@ const Profile = () => {
                   <Text style={[styles.statNumber, isDarkMode && styles.darkModeText]}>{tripCount}</Text>
                   <Text style={[styles.statLabel, isDarkMode && styles.darkModeText]}>Trips</Text>
                 </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Text style={[styles.statNumber, isDarkMode && styles.darkModeText]}>0</Text>
-                  <Text style={[styles.statLabel, isDarkMode && styles.darkModeText]}>Photos</Text>
-                </View>
               </View>
             </View>
           </View>
@@ -1196,7 +1191,7 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
     width: '100%',
     marginTop: 16,
     paddingTop: 16,
@@ -1206,6 +1201,7 @@ const styles = StyleSheet.create({
   statItem: {
     alignItems: 'center',
     flex: 1,
+    paddingHorizontal: 20,
   },
   statNumber: {
     fontSize: 18,
