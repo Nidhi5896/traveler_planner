@@ -73,6 +73,129 @@ const fetchPOIsFromContinents = async () => {
   return Promise.all(placesPromises).then(places => places.filter(place => place !== null));
 };
 
+const popularPlaces = [
+  {
+    name: "Taj Mahal",
+    country: "India",
+    brief: "A stunning white marble mausoleum and one of the Seven Wonders of the World",
+    image: "https://images.pexels.com/photos/1603650/pexels-photo-1603650.jpeg"
+  },
+  {
+    name: "Eiffel Tower",
+    country: "France",
+    brief: "Iconic iron lattice tower and symbol of Paris",
+    image: "https://images.pexels.com/photos/338515/pexels-photo-338515.jpeg"
+  },
+  {
+    name: "Great Wall of China",
+    country: "China",
+    brief: "Ancient wall stretching thousands of miles across China",
+    image: "https://images.pexels.com/photos/2412603/pexels-photo-2412603.jpeg"
+  },
+  {
+    name: "Pyramids of Giza",
+    country: "Egypt",
+    brief: "Ancient Egyptian pyramids and the only surviving wonder of the ancient world",
+    image: "https://images.pexels.com/photos/71241/pexels-photo-71241.jpeg"
+  },
+  {
+    name: "Sydney Opera House",
+    country: "Australia",
+    brief: "Famous performing arts center with distinctive shell-like design",
+    image: "https://images.pexels.com/photos/1878293/pexels-photo-1878293.jpeg"
+  },
+  {
+    name: "Statue of Liberty",
+    country: "USA",
+    brief: "Iconic symbol of freedom and democracy in New York Harbor",
+    image: "https://images.pexels.com/photos/290386/pexels-photo-290386.jpeg"
+  },
+  {
+    name: "Machu Picchu",
+    country: "Peru",
+    brief: "Ancient Incan citadel set high in the Andes Mountains",
+    image: "https://images.pexels.com/photos/2356045/pexels-photo-2356045.jpeg"
+  },
+  {
+    name: "Colosseum",
+    country: "Italy",
+    brief: "Ancient Roman amphitheater and symbol of Imperial Rome",
+    image: "https://images.pexels.com/photos/532263/pexels-photo-532263.jpeg"
+  },
+  {
+    name: "Petra",
+    country: "Jordan",
+    brief: "Ancient city carved into rose-colored rock faces",
+    image: "https://images.pexels.com/photos/1631665/pexels-photo-1631665.jpeg"
+  },
+  {
+    name: "Christ the Redeemer",
+    country: "Brazil",
+    brief: "Iconic statue of Jesus Christ overlooking Rio de Janeiro",
+    image: "https://images.pexels.com/photos/1804177/pexels-photo-1804177.jpeg"
+  },
+  {
+    name: "Santorini",
+    country: "Greece",
+    brief: "Beautiful island known for its white-washed buildings and blue domes",
+    image: "https://images.pexels.com/photos/1010657/pexels-photo-1010657.jpeg"
+  },
+  {
+    name: "Mount Fuji",
+    country: "Japan",
+    brief: "Japan's highest mountain and an iconic symbol of natural beauty",
+    image: "https://images.pexels.com/photos/3408354/pexels-photo-3408354.jpeg"
+  },
+  {
+    name: "Northern Lights",
+    country: "Iceland",
+    brief: "Natural light display in the Earth's sky, predominantly seen in high-latitude regions",
+    image: "https://images.pexels.com/photos/1933316/pexels-photo-1933316.jpeg"
+  },
+  {
+    name: "Burj Khalifa",
+    country: "UAE",
+    brief: "World's tallest building and a marvel of modern architecture",
+    image: "https://images.pexels.com/photos/162031/dubai-tower-arab-khalifa-162031.jpeg"
+  },
+  {
+    name: "Venice Canals",
+    country: "Italy",
+    brief: "Historic city of canals, gondolas, and beautiful architecture",
+    image: "https://images.pexels.com/photos/1796715/pexels-photo-1796715.jpeg"
+  },
+  {
+    name: "Angkor Wat",
+    country: "Cambodia",
+    brief: "Largest religious monument in the world and symbol of Cambodia",
+    image: "https://images.pexels.com/photos/3669288/pexels-photo-3669288.jpeg"
+  },
+  {
+    name: "Maldives",
+    country: "Maldives",
+    brief: "Tropical paradise with crystal clear waters and overwater bungalows",
+    image: "https://images.pexels.com/photos/1483053/pexels-photo-1483053.jpeg"
+  },
+  {
+    name: "Grand Canyon",
+    country: "USA",
+    brief: "Vast natural wonder carved by the Colorado River",
+    image: "https://images.pexels.com/photos/691668/pexels-photo-691668.jpeg"
+  },
+  {
+    name: "Swiss Alps",
+    country: "Switzerland",
+    brief: "Majestic mountain range perfect for skiing and scenic views",
+    image: "https://images.pexels.com/photos/417173/pexels-photo-417173.jpeg"
+  },
+  {
+    name: "Cappadocia",
+    country: "Turkey",
+    brief: "Famous for its unique rock formations and hot air balloon rides",
+    image: "https://images.pexels.com/photos/2563604/pexels-photo-2563604.jpeg"
+  }
+];
+
 const Discover = () => {
   const [trendingPlaces, setTrendingPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -80,34 +203,22 @@ const Discover = () => {
   const [searchedPlace, setSearchedPlace] = useState(null);
 
   useEffect(() => {
-    const loadTrendingPlaces = async () => {
-      try {
-        const places = await fetchPOIsFromContinents();
-        setTrendingPlaces(places);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error loading trending places:", error);
-        setLoading(false);
-      }
-    };
-
-    loadTrendingPlaces();
+    // Initialize with popular places
+    setTrendingPlaces(popularPlaces);
+    setLoading(false);
   }, []);
 
   const searchNewPlace = async () => {
+    if (!searchQuery.trim()) return;
+    
     try {
-      const imageUrl = await fetchImage(searchQuery);
-      if (imageUrl) {
-        setSearchedPlace({
-          name: searchQuery,
-          image: imageUrl,
-          country: searchQuery,
-          brief: 'A place you searched for.',
-          continent: 'Unknown',
-        });
-      } else {
-        setSearchedPlace(null);
-      }
+      const newPlace = {
+        name: searchQuery,
+        country: "Search Result",
+        brief: "A place you discovered",
+        image: "https://images.pexels.com/photos/1793035/pexels-photo-1793035.jpeg"
+      };
+      setSearchedPlace(newPlace);
     } catch (error) {
       console.error("Error searching new place:", error);
     }
@@ -115,9 +226,9 @@ const Discover = () => {
 
   const addNewPlace = () => {
     if (searchedPlace) {
-      setTrendingPlaces((prevPlaces) => {
+      setTrendingPlaces(prevPlaces => {
         const updatedPlaces = [searchedPlace, ...prevPlaces];
-        return updatedPlaces.slice(0, 20); // Limit to 20 places
+        return updatedPlaces.slice(0, 20); // Keep only the latest 20 places
       });
       setSearchedPlace(null);
       setSearchQuery('');
@@ -125,7 +236,7 @@ const Discover = () => {
   };
 
   const handleCardPress = (name) => {
-    const wikipediaUrl = `https://en.wikipedia.org/wiki/${name}`;
+    const wikipediaUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(name)}`;
     WebBrowser.openBrowserAsync(wikipediaUrl);
   };
 
@@ -159,15 +270,15 @@ const Discover = () => {
       <ScrollView contentContainerStyle={styles.cardsContainer}>
         {trendingPlaces.map((place, index) => (
           <TouchableOpacity
-            key={`${place.name}-${index}`} // Ensure each key is unique
+            key={`${place.name}-${index}`}
             style={styles.card}
             onPress={() => handleCardPress(place.name)}
           >
-            {place.image ? (
-              <Image source={{ uri: `${place.image}?${new Date().getTime()}` }} style={styles.cardImage} />
-            ) : (
-              <Image source={require('../../assets/images/placeholder.png')} style={styles.cardImage} />
-            )}
+            <Image 
+              source={{ uri: place.image }} 
+              style={styles.cardImage}
+              defaultSource={require('../../assets/images/placeholder.png')}
+            />
             <LinearGradient
               colors={['transparent', 'rgba(0,0,0,0.8)']}
               style={styles.cardOverlay}

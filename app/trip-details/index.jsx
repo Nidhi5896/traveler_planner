@@ -161,7 +161,7 @@ export default function TripDetails() {
               <View style={styles.wishlistHeaderContent}>
                 <Ionicons name="heart" size={20} color="#FF6B6B" />
                 <Text style={styles.wishlistTitle}>Your Wishlist Preferences</Text>
-              </View>
+      </View>
               <Ionicons 
                 name={wishlistExpanded ? "chevron-up" : "chevron-down"} 
                 size={20} 
@@ -187,8 +187,8 @@ export default function TripDetails() {
       </View>
 
       <FlightInfo flightData={tripDetails?.tripPlan?.flights?.details} />
-      <HotelList hotelList={tripDetails?.tripPlan?.hotels?.options} />
-      <PlannedTrip details={tripDetails?.tripPlan?.itinerary} />
+        <HotelList hotelList={tripDetails?.tripPlan?.hotels?.options} />
+        <PlannedTrip details={tripDetails?.tripPlan?.itinerary} />
     </ScrollView>
   );
 }

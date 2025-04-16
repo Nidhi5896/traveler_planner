@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
+import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from "react-native";
 import axios from "axios";
 import { useRouter } from "expo-router";
 import moment from "moment";
 import PropTypes from "prop-types";
+import { Ionicons } from '@expo/vector-icons';
+import { db } from '../../configs/firebaseconfig';
+import { doc, deleteDoc } from 'firebase/firestore';
 
 const fetchImage = async (locationName) => {
   const apiKey = '44938756-d9d562ffdaf712150c470c59e'; // Pixabay API key
@@ -22,7 +25,7 @@ const fetchImage = async (locationName) => {
   }
 };
 
-export default function UserTripList({ userTrips }) {
+export default function UserTripList({ userTrips, onTripDeleted }) {
   const [imageUrls, setImageUrls] = useState({});
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -52,21 +55,49 @@ export default function UserTripList({ userTrips }) {
     }
   }, [userTrips]);
 
+  const handleDeleteTrip = async (tripId) => {
+    Alert.alert(
+      "Delete Trip",
+      "Are you sure you want to delete this trip?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, 'UserTrips', tripId));
+              if (onTripDeleted) {
+                onTripDeleted(tripId);
+              }
+              Alert.alert("Success", "Trip deleted successfully");
+            } catch (error) {
+              console.error("Error deleting trip:", error);
+              Alert.alert("Error", "Failed to delete trip. Please try again.");
+            }
+          }
+        }
+      ]
+    );
+  };
+
   if (!userTrips || userTrips.length === 0) {
     return <Text>No trips available</Text>;
   }
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {userTrips.map((trip, index) => {
-          const tripData = JSON.parse(trip.tripData);
-          const imageUrl = imageUrls[trip.docId];
+      {userTrips.map((trip, index) => {
+        const tripData = JSON.parse(trip.tripData);
+        const imageUrl = imageUrls[trip.docId];
 
-          return (
+        return (
+          <View key={trip.docId || index} style={styles.tripCard}>
             <TouchableOpacity 
-              key={trip.docId || index}
-              style={styles.tripCard}
+              style={styles.tripContent}
               onPress={() => router.push({ 
                 pathname: '/trip-details', 
                 params: { trip: JSON.stringify(trip) } 
@@ -93,9 +124,15 @@ export default function UserTripList({ userTrips }) {
                 </Text>
               </View>
             </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+            <TouchableOpacity 
+              style={styles.deleteButton}
+              onPress={() => handleDeleteTrip(trip.docId)}
+            >
+              <Ionicons name="trash-outline" size={24} color="#FF3B30" />
+            </TouchableOpacity>
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -106,13 +143,13 @@ UserTripList.propTypes = {
     tripData: PropTypes.string,
     startDate: PropTypes.string,
     endDate: PropTypes.string
-  })).isRequired
+  })).isRequired,
+  onTripDeleted: PropTypes.func
 };
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
-    backgroundColor: "#f0f0f0",
+    paddingBottom: 20,
   },
   tripCard: {
     backgroundColor: "white",
@@ -124,6 +161,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  tripContent: {
+    flex: 1,
   },
   image: {
     width: "100%",
@@ -148,5 +188,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     marginBottom: 12,
+  },
+  deleteButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 20,
+    padding: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   }
 });

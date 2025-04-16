@@ -18,44 +18,49 @@ export default function MyTrip() {
   useEffect(() => {
     user && GetMyTrips();
   }, [user]);
+
   const handleAddNewTrip = () => {
-    router.push('/create-trip/search-place'); // Navigate to the trip creation screen
+    router.push('/create-trip/search-place');
+  };
+
+  const handleTripDeleted = (deletedTripId) => {
+    setUserTrips(prevTrips => prevTrips.filter(trip => trip.docId !== deletedTripId));
   };
   
   const GetMyTrips = async () => {
     setLoading(true);
     setUserTrips([]);
     const q = query(collection(db, 'UserTrips'), where('userEmail', '==', user?.email));
-    const querySnapshot = await
-     getDocs(q);
+    const querySnapshot = await getDocs(q);
 
-    // const trips = [];
     querySnapshot.forEach((doc) => {
       console.log(doc.id, "=>", doc.data());
-      // trips.push(doc.data());
-      setUserTrips(prev=>[...prev,doc.data()]);
+      setUserTrips(prev => [...prev, { ...doc.data(), docId: doc.id }]);
     });
 
-  
-    // console.log('Updated userTrips:', trips);
     setLoading(false);
   }
 
- 
-
   return (
     <View style={{ flex: 1, backgroundColor: "#fff" }}>
-      <ScrollView style={{
-        padding: 25,
-        paddingTop: 55,
-        backgroundColor: "#fff",
-        height: "100%"
-      }}>
+      <ScrollView 
+        style={{
+          flex: 1,
+          backgroundColor: "#fff",
+        }}
+        contentContainerStyle={{
+          padding: 25,
+          paddingTop: 55,
+          paddingBottom: 100, // Add extra padding at the bottom
+        }}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={{
           display: 'flex',
           flexDirection: 'row',
           alignContent: 'center',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
+          marginBottom: 20,
         }}>
           <Text style={{
             fontFamily: 'outfit-bold',
@@ -68,7 +73,7 @@ export default function MyTrip() {
         {loading && <ActivityIndicator size={'large'} color={'#000'} />}
         {userTrips?.length === 0 ?
           <StartNewTripCard />
-          : <UserTripList userTrips={userTrips} />
+          : <UserTripList userTrips={userTrips} onTripDeleted={handleTripDeleted} />
         }
       </ScrollView>
       

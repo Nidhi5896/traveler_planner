@@ -1,20 +1,139 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Share, TextInput, Alert, ScrollView, Modal, ActivityIndicator } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Share, TextInput, Alert, ScrollView, Modal, ActivityIndicator, Switch, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { auth, db } from '../../configs/firebaseconfig'; // Fixed path with lowercase config
-import { collection, addDoc, query, where, getDocs, doc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ThemeContext } from './_layout';
 
 const Profile = () => {
   const router = useRouter();
+  const { isDarkMode, setIsDarkMode, theme } = React.useContext(ThemeContext);
   const [user, setUser] = useState(null);
   const [wishlistItem, setWishlistItem] = useState('');
-  const [wishlist, setWishlist] = useState([]);
+  const [wishlistItems, setWishlistItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showInput, setShowInput] = useState(false);
   const [fullPageWishlist, setFullPageWishlist] = useState(false);
   const [imageCache, setImageCache] = useState({});
+  
+  // Settings state
+  const [notifications, setNotifications] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState('English');
+  const [selectedCurrency, setSelectedCurrency] = useState('USD');
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [showSecurityModal, setShowSecurityModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showAboutModal, setShowAboutModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  // Load settings from AsyncStorage
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const notificationsSetting = await AsyncStorage.getItem('notifications');
+        const language = await AsyncStorage.getItem('language');
+        const currency = await AsyncStorage.getItem('currency');
+        
+        if (notificationsSetting !== null) setNotifications(notificationsSetting === 'true');
+        if (language !== null) setSelectedLanguage(language);
+        if (currency !== null) setSelectedCurrency(currency);
+      } catch (error) {
+        console.error('Error loading settings:', error);
+      }
+    };
+    
+    loadSettings();
+  }, []);
+
+  // Save settings to AsyncStorage
+  const saveSettings = async (key, value) => {
+    try {
+      await AsyncStorage.setItem(key, value.toString());
+    } catch (error) {
+      console.error(`Error saving ${key}:`, error);
+    }
+  };
+
+  // Handle dark mode toggle
+  const handleDarkModeToggle = (value) => {
+    setIsDarkMode(value);
+    saveSettings('darkMode', value);
+  };
+
+  // Handle notifications toggle
+  const handleNotificationsToggle = (value) => {
+    setNotifications(value);
+    saveSettings('notifications', value);
+  };
+
+  // Handle language change
+  const handleLanguageChange = (language) => {
+    setSelectedLanguage(language);
+    saveSettings('language', language);
+    setShowLanguageModal(false);
+  };
+
+  // Handle currency change
+  const handleCurrencyChange = (currency) => {
+    setSelectedCurrency(currency);
+    saveSettings('currency', currency);
+    setShowCurrencyModal(false);
+  };
+
+  // Handle password change
+  const handlePasswordChange = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      Alert.alert('Error', 'Please fill in all password fields');
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Error', 'New passwords do not match');
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+    
+    setChangingPassword(true);
+    
+    try {
+      // In a real app, you would verify the current password and update it
+      // For this example, we'll just simulate the process
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Update user document in Firestore
+      if (user && user.email) {
+        const userRef = doc(db, 'users', user.email);
+        await updateDoc(userRef, {
+          passwordUpdatedAt: new Date()
+        });
+      }
+      
+      Alert.alert('Success', 'Password updated successfully');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowSecurityModal(false);
+    } catch (error) {
+      console.error('Error changing password:', error);
+      Alert.alert('Error', 'Failed to update password. Please try again.');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -27,7 +146,7 @@ const Profile = () => {
         fetchWishlist(user.email);
       } else {
         setUser(null);
-        setWishlist([]);
+        setWishlistItems([]);
       }
     });
 
@@ -83,12 +202,12 @@ const Profile = () => {
         });
       });
       
-      setWishlist(items);
+      setWishlistItems(items);
       
       // Fetch images for all items
       for (const item of items) {
         const imageUrl = await fetchImage(item.item);
-        setWishlist(current => 
+        setWishlistItems(current => 
           current.map(wishItem => 
             wishItem.id === item.id 
               ? {...wishItem, imageUrl} 
@@ -141,7 +260,7 @@ const Profile = () => {
         createdAt: new Date()
       };
       
-      setWishlist(current => [...current, newItem]);
+      setWishlistItems(current => [...current, newItem]);
       setWishlistItem('');
       setShowInput(false);
       
@@ -155,11 +274,11 @@ const Profile = () => {
     }
   };
 
-  const removeWishlistItem = async (id) => {
+  const removeFromWishlist = async (id) => {
     try {
       setLoading(true);
       await deleteDoc(doc(db, 'Wishlist', id));
-      setWishlist(wishlist.filter(item => item.id !== id));
+      setWishlistItems(wishlistItems.filter(item => item.id !== id));
     } catch (error) {
       console.error('Error removing wishlist item:', error);
       Alert.alert('Error', 'Failed to remove item from wishlist');
@@ -199,86 +318,26 @@ const Profile = () => {
       >
         <View style={styles.fullPageContainer}>
           <View style={styles.fullPageHeader}>
-            <TouchableOpacity 
-              style={styles.closeButton}
-              onPress={() => setFullPageWishlist(false)}
-            >
-              <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Text style={styles.fullPageTitle}>My Wishlist</Text>
+            <TouchableOpacity onPress={() => setFullPageWishlist(false)}>
+              <Ionicons name="close" size={24} color="#333" />
             </TouchableOpacity>
-            <Text style={styles.fullPageTitle}>My Travel Wishlist</Text>
           </View>
-          
-          <ScrollView contentContainerStyle={styles.fullPageContent}>
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#4682B4" />
-                <Text style={styles.loadingText}>Loading your wishlist...</Text>
-              </View>
+          <ScrollView style={styles.fullPageContent}>
+            {wishlistItems.length > 0 ? (
+              wishlistItems.map((item) => (
+                <View key={item.id} style={styles.wishlistItem}>
+                  <Image source={{ uri: item.imageUrl }} style={styles.wishlistItemImage} />
+                  <View style={styles.wishlistItemInfo}>
+                    <Text style={styles.wishlistItemName}>{item.item}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => removeFromWishlist(item.id)}>
+                    <Ionicons name="heart-dislike" size={24} color="#FF6B6B" />
+                  </TouchableOpacity>
+                </View>
+              ))
             ) : (
-              <>
-                <TouchableOpacity
-                  style={styles.addWishlistButton}
-                  onPress={() => setShowInput(!showInput)}
-                >
-                  <Text style={styles.addWishlistText}>
-                    {showInput ? "Cancel" : "Add to Wishlist"}
-                  </Text>
-                </TouchableOpacity>
-    
-                {showInput && (
-                  <View style={styles.inputContainer}>
-                    <TextInput
-                      style={styles.input}
-                      value={wishlistItem}
-                      onChangeText={setWishlistItem}
-                      placeholder="Add a travel wish..."
-                      placeholderTextColor="#999"
-                    />
-                    <TouchableOpacity 
-                      style={[styles.addButton, wishlistItem.trim() ? styles.addButtonActive : {}]}
-                      onPress={addWishlistItem}
-                      disabled={loading || !wishlistItem.trim()}
-                    >
-                      <Ionicons name="add-circle" size={30} color={wishlistItem.trim() ? "#4682B4" : "#ccc"} />
-                    </TouchableOpacity>
-                  </View>
-                )}
-    
-                <Text style={styles.wishlistCount}>Your wishlist items: {wishlist.length}</Text>
-    
-                {wishlist.length > 0 ? (
-                  wishlist.map(item => {
-                    // For debugging
-                    console.log('Rendering item:', item.item);
-                    
-                    return (
-                      <View key={item.id} style={styles.fullPageWishlistItem}>
-                        <Image 
-                          source={{ uri: item.imageUrl }}
-                          style={{width: '100%', height: 180}}
-                          resizeMode="cover"
-                          onError={() => console.log('Image loading error for:', item.item)}
-                        />
-                        <View style={styles.wishlistItemContent}>
-                          <Text style={styles.wishlistItemText}>{item.item}</Text>
-                          <TouchableOpacity 
-                            style={styles.removeButton}
-                            onPress={() => removeWishlistItem(item.id)}
-                          >
-                            <Ionicons name="trash-outline" size={24} color="#ff6347" />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    );
-                  })
-                ) : (
-                  <View style={styles.emptyWishlist}>
-                    <Ionicons name="heart-outline" size={60} color="#ccc" />
-                    <Text style={styles.emptyWishlistText}>Your wishlist is empty</Text>
-                    <Text style={styles.emptyWishlistSubtext}>Add destinations or activities you would like to experience</Text>
-                  </View>
-                )}
-              </>
+              <Text style={styles.emptyWishlistText}>No items in your wishlist</Text>
             )}
           </ScrollView>
         </View>
@@ -286,56 +345,546 @@ const Profile = () => {
     );
   };
 
-  return (
-    <ScrollView 
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={false}
-    >
-      <Text style={styles.title}>Profile</Text>
-      
-      {user && (
-        <View style={styles.userIntroContainer}>
-          {user.photoURL ? (
-            <Image source={{ uri: user.photoURL }} style={styles.userImage} />
-          ) : (
-            <Image 
-              source={require('../../assets/images/icon.png')} 
-              style={styles.userImage} 
-            />
-          )}
-          <Text style={styles.userName}>{user.fullName}</Text>
-          <Text style={styles.userEmail}>{user.email}</Text>
-        </View>
-      )}
-
-      {/* Wishlist Icon and Header */}
-      <TouchableOpacity 
-        style={styles.wishlistHeader}
-        onPress={() => setFullPageWishlist(true)}
+  const renderSettingsModal = () => {
+    return (
+      <Modal
+        visible={showSettings}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowSettings(false)}
       >
-        <View style={styles.wishlistHeaderContent}>
-          <Ionicons name="heart" size={24} color="#4682B4" />
-          <Text style={styles.wishlistTitle}>My Travel Wishlist</Text>
-        </View>
-        <View style={styles.wishlistCountBadge}>
-          <Text style={styles.wishlistCountText}>{wishlist.length}</Text>
-        </View>
-      </TouchableOpacity>
+        <View style={[styles.settingsContainer, isDarkMode && styles.darkModeContainer]}>
+          <View style={styles.settingsHeader}>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={() => setShowSettings(false)}
+            >
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.settingsTitle}>Settings</Text>
+          </View>
+          
+          <ScrollView style={styles.settingsContent}>
+            {/* Theme Settings */}
+            <View style={[styles.settingItem, isDarkMode && styles.darkModeSettingItem]}>
+              <View style={styles.settingLeft}>
+                <Ionicons name="moon-outline" size={24} color="#4682B4" />
+                <Text style={[styles.settingText, isDarkMode && styles.darkModeText]}>Dark Mode</Text>
+              </View>
+              <Switch
+                value={isDarkMode}
+                onValueChange={handleDarkModeToggle}
+                trackColor={{ false: '#767577', true: '#81b0ff' }}
+                thumbColor={isDarkMode ? '#4682B4' : '#f4f3f4'}
+              />
+            </View>
 
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <Text style={styles.signOutButtonText}>Sign Out</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-          <Text style={styles.shareButtonText}>Share App</Text>
+            {/* Notifications */}
+            <View style={[styles.settingItem, isDarkMode && styles.darkModeSettingItem]}>
+              <View style={styles.settingLeft}>
+                <Ionicons name="notifications-outline" size={24} color="#4682B4" />
+                <Text style={[styles.settingText, isDarkMode && styles.darkModeText]}>Notifications</Text>
+              </View>
+              <Switch
+                value={notifications}
+                onValueChange={handleNotificationsToggle}
+                trackColor={{ false: '#767577', true: '#81b0ff' }}
+                thumbColor={notifications ? '#4682B4' : '#f4f3f4'}
+              />
+            </View>
+
+            {/* Language Selection */}
+            <TouchableOpacity 
+              style={[styles.settingItem, isDarkMode && styles.darkModeSettingItem]}
+              onPress={() => setShowLanguageModal(true)}
+            >
+              <View style={styles.settingLeft}>
+                <Ionicons name="language-outline" size={24} color="#4682B4" />
+                <Text style={[styles.settingText, isDarkMode && styles.darkModeText]}>Language</Text>
+              </View>
+              <View style={styles.settingRight}>
+                <Text style={[styles.settingValue, isDarkMode && styles.darkModeText]}>{selectedLanguage}</Text>
+                <Ionicons name="chevron-forward" size={20} color="#4682B4" />
+              </View>
+            </TouchableOpacity>
+
+            {/* Currency Selection */}
+            <TouchableOpacity 
+              style={[styles.settingItem, isDarkMode && styles.darkModeSettingItem]}
+              onPress={() => setShowCurrencyModal(true)}
+            >
+              <View style={styles.settingLeft}>
+                <Ionicons name="cash-outline" size={24} color="#4682B4" />
+                <Text style={[styles.settingText, isDarkMode && styles.darkModeText]}>Currency</Text>
+              </View>
+              <View style={styles.settingRight}>
+                <Text style={[styles.settingValue, isDarkMode && styles.darkModeText]}>{selectedCurrency}</Text>
+                <Ionicons name="chevron-forward" size={20} color="#4682B4" />
+              </View>
+            </TouchableOpacity>
+
+            {/* Security Settings */}
+            <TouchableOpacity 
+              style={[styles.settingItem, isDarkMode && styles.darkModeSettingItem]}
+              onPress={() => setShowSecurityModal(true)}
+            >
+              <View style={styles.settingLeft}>
+                <Ionicons name="shield-checkmark-outline" size={24} color="#4682B4" />
+                <Text style={[styles.settingText, isDarkMode && styles.darkModeText]}>Security</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#4682B4" />
+            </TouchableOpacity>
+
+            {/* Privacy Settings */}
+            <TouchableOpacity 
+              style={[styles.settingItem, isDarkMode && styles.darkModeSettingItem]}
+              onPress={() => setShowPrivacyModal(true)}
+            >
+              <View style={styles.settingLeft}>
+                <Ionicons name="lock-closed-outline" size={24} color="#4682B4" />
+                <Text style={[styles.settingText, isDarkMode && styles.darkModeText]}>Privacy</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#4682B4" />
+            </TouchableOpacity>
+
+            {/* Help & Support */}
+            <TouchableOpacity 
+              style={[styles.settingItem, isDarkMode && styles.darkModeSettingItem]}
+              onPress={() => setShowHelpModal(true)}
+            >
+              <View style={styles.settingLeft}>
+                <Ionicons name="help-circle-outline" size={24} color="#4682B4" />
+                <Text style={[styles.settingText, isDarkMode && styles.darkModeText]}>Help & Support</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#4682B4" />
+            </TouchableOpacity>
+
+            {/* About */}
+            <TouchableOpacity 
+              style={[styles.settingItem, isDarkMode && styles.darkModeSettingItem]}
+              onPress={() => setShowAboutModal(true)}
+            >
+              <View style={styles.settingLeft}>
+                <Ionicons name="information-circle-outline" size={24} color="#4682B4" />
+                <Text style={[styles.settingText, isDarkMode && styles.darkModeText]}>About</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#4682B4" />
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
+    );
+  };
+
+  const renderLanguageModal = () => {
+    const languages = ['English', 'Spanish', 'French', 'German', 'Chinese'];
+    
+    return (
+      <Modal
+        visible={showLanguageModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowLanguageModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isDarkMode && styles.darkModeModalContent]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, isDarkMode && styles.darkModeText]}>Select Language</Text>
+              <TouchableOpacity onPress={() => setShowLanguageModal(false)}>
+                <Ionicons name="close" size={24} color="#4682B4" />
+              </TouchableOpacity>
+            </View>
+            
+            {languages.map((lang) => (
+              <TouchableOpacity 
+                key={lang}
+                style={[
+                  styles.modalOption,
+                  selectedLanguage === lang && styles.modalOptionSelected,
+                  isDarkMode && styles.darkModeModalOption
+                ]}
+                onPress={() => handleLanguageChange(lang)}
+              >
+                <Text style={[
+                  styles.modalOptionText,
+                  selectedLanguage === lang && styles.modalOptionTextSelected,
+                  isDarkMode && styles.darkModeText
+                ]}>
+                  {lang}
+                </Text>
+                {selectedLanguage === lang && (
+                  <Ionicons name="checkmark" size={20} color="#4682B4" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
+  const renderCurrencyModal = () => {
+    const currencies = ['USD', 'EUR', 'GBP', 'INR', 'JPY'];
+    
+    return (
+      <Modal
+        visible={showCurrencyModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCurrencyModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isDarkMode && styles.darkModeModalContent]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, isDarkMode && styles.darkModeText]}>Select Currency</Text>
+              <TouchableOpacity onPress={() => setShowCurrencyModal(false)}>
+                <Ionicons name="close" size={24} color="#4682B4" />
+              </TouchableOpacity>
+            </View>
+            
+            {currencies.map((curr) => (
+              <TouchableOpacity 
+                key={curr}
+                style={[
+                  styles.modalOption,
+                  selectedCurrency === curr && styles.modalOptionSelected,
+                  isDarkMode && styles.darkModeModalOption
+                ]}
+                onPress={() => handleCurrencyChange(curr)}
+              >
+                <Text style={[
+                  styles.modalOptionText,
+                  selectedCurrency === curr && styles.modalOptionTextSelected,
+                  isDarkMode && styles.darkModeText
+                ]}>
+                  {curr}
+                </Text>
+                {selectedCurrency === curr && (
+                  <Ionicons name="checkmark" size={20} color="#4682B4" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
+  const renderSecurityModal = () => {
+    return (
+      <Modal
+        visible={showSecurityModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowSecurityModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isDarkMode && styles.darkModeModalContent]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, isDarkMode && styles.darkModeText]}>Security Settings</Text>
+              <TouchableOpacity onPress={() => setShowSecurityModal(false)}>
+                <Ionicons name="close" size={24} color="#4682B4" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.securityForm}>
+              <Text style={[styles.securityLabel, isDarkMode && styles.darkModeText]}>Current Password</Text>
+              <TextInput
+                style={[styles.securityInput, isDarkMode && styles.darkModeInput]}
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                placeholder="Enter current password"
+                placeholderTextColor={isDarkMode ? "#aaa" : "#999"}
+                secureTextEntry
+              />
+              
+              <Text style={[styles.securityLabel, isDarkMode && styles.darkModeText]}>New Password</Text>
+              <TextInput
+                style={[styles.securityInput, isDarkMode && styles.darkModeInput]}
+                value={newPassword}
+                onChangeText={setNewPassword}
+                placeholder="Enter new password"
+                placeholderTextColor={isDarkMode ? "#aaa" : "#999"}
+                secureTextEntry
+              />
+              
+              <Text style={[styles.securityLabel, isDarkMode && styles.darkModeText]}>Confirm New Password</Text>
+              <TextInput
+                style={[styles.securityInput, isDarkMode && styles.darkModeInput]}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="Confirm new password"
+                placeholderTextColor={isDarkMode ? "#aaa" : "#999"}
+                secureTextEntry
+              />
+              
+              <TouchableOpacity 
+                style={styles.securityButton}
+                onPress={handlePasswordChange}
+                disabled={changingPassword}
+              >
+                {changingPassword ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.securityButtonText}>Change Password</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
+  const renderPrivacyModal = () => {
+    return (
+      <Modal
+        visible={showPrivacyModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowPrivacyModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isDarkMode && styles.darkModeModalContent]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, isDarkMode && styles.darkModeText]}>Privacy Settings</Text>
+              <TouchableOpacity onPress={() => setShowPrivacyModal(false)}>
+                <Ionicons name="close" size={24} color="#4682B4" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.privacyContent}>
+              <Text style={[styles.privacyText, isDarkMode && styles.darkModeText]}>
+                Your privacy is important to us. We collect and process your data in accordance with our Privacy Policy.
+              </Text>
+              
+              <View style={styles.privacySection}>
+                <Text style={[styles.privacySectionTitle, isDarkMode && styles.darkModeText]}>
+                  Data Collection
+                </Text>
+                <Text style={[styles.privacySectionText, isDarkMode && styles.darkModeText]}>
+                  We collect information that you provide directly to us, including your name, email address, and travel preferences.
+                </Text>
+              </View>
+              
+              <View style={styles.privacySection}>
+                <Text style={[styles.privacySectionTitle, isDarkMode && styles.darkModeText]}>
+                  Data Usage
+                </Text>
+                <Text style={[styles.privacySectionText, isDarkMode && styles.darkModeText]}>
+                  We use your data to provide and improve our services, personalize your experience, and communicate with you.
+                </Text>
+              </View>
+              
+              <View style={styles.privacySection}>
+                <Text style={[styles.privacySectionTitle, isDarkMode && styles.darkModeText]}>
+                  Data Protection
+                </Text>
+                <Text style={[styles.privacySectionText, isDarkMode && styles.darkModeText]}>
+                  We implement appropriate security measures to protect your personal information from unauthorized access.
+                </Text>
+              </View>
+              
+              <TouchableOpacity 
+                style={styles.privacyButton}
+                onPress={() => setShowPrivacyModal(false)}
+              >
+                <Text style={styles.privacyButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
+  const renderHelpModal = () => {
+    return (
+      <Modal
+        visible={showHelpModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowHelpModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isDarkMode && styles.darkModeModalContent]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, isDarkMode && styles.darkModeText]}>Help & Support</Text>
+              <TouchableOpacity onPress={() => setShowHelpModal(false)}>
+                <Ionicons name="close" size={24} color="#4682B4" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.helpContent}>
+              <Text style={[styles.helpText, isDarkMode && styles.darkModeText]}>
+                Need help with the app? Here are some resources to assist you:
+              </Text>
+              
+              <View style={styles.helpSection}>
+                <Text style={[styles.helpSectionTitle, isDarkMode && styles.darkModeText]}>
+                  Frequently Asked Questions
+                </Text>
+                <Text style={[styles.helpSectionText, isDarkMode && styles.darkModeText]}>
+                  Find answers to common questions about using the app, managing your account, and more.
+                </Text>
+              </View>
+              
+              <View style={styles.helpSection}>
+                <Text style={[styles.helpSectionTitle, isDarkMode && styles.darkModeText]}>
+                  Contact Support
+                </Text>
+                <Text style={[styles.helpSectionText, isDarkMode && styles.darkModeText]}>
+                  Our support team is available to help you with any issues or questions you may have.
+                </Text>
+              </View>
+              
+              <View style={styles.helpSection}>
+                <Text style={[styles.helpSectionTitle, isDarkMode && styles.darkModeText]}>
+                  Tutorials
+                </Text>
+                <Text style={[styles.helpSectionText, isDarkMode && styles.darkModeText]}>
+                  Learn how to use the app's features with our step-by-step tutorials and guides.
+                </Text>
+              </View>
+              
+              <TouchableOpacity 
+                style={styles.helpButton}
+                onPress={() => setShowHelpModal(false)}
+              >
+                <Text style={styles.helpButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
+  const renderAboutModal = () => {
+    return (
+      <Modal
+        visible={showAboutModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowAboutModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isDarkMode && styles.darkModeModalContent]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, isDarkMode && styles.darkModeText]}>About</Text>
+              <TouchableOpacity onPress={() => setShowAboutModal(false)}>
+                <Ionicons name="close" size={24} color="#4682B4" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.aboutContent}>
+              <Image 
+                source={require('../../assets/images/icon.png')} 
+                style={styles.aboutLogo} 
+              />
+              
+              <Text style={[styles.aboutAppName, isDarkMode && styles.darkModeText]}>
+                Travel App
+              </Text>
+              
+              <Text style={[styles.aboutVersion, isDarkMode && styles.darkModeText]}>
+                Version 1.0.0
+              </Text>
+              
+              <Text style={[styles.aboutDescription, isDarkMode && styles.darkModeText]}>
+                A comprehensive travel app that helps you discover new places, plan your trips, and manage your travel wishlist.
+              </Text>
+              
+              <View style={styles.aboutSection}>
+                <Text style={[styles.aboutSectionTitle, isDarkMode && styles.darkModeText]}>
+                  Features
+                </Text>
+                <Text style={[styles.aboutSectionText, isDarkMode && styles.darkModeText]}>
+                  • Discover popular travel destinations{'\n'}
+                  • Create and manage your travel wishlist{'\n'}
+                  • Plan your trips with detailed itineraries{'\n'}
+                  • Share your travel experiences with friends
+                </Text>
+              </View>
+              
+              <TouchableOpacity 
+                style={styles.aboutButton}
+                onPress={() => setShowAboutModal(false)}
+              >
+                <Text style={styles.aboutButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
+  return (
+    <View style={[styles.container, isDarkMode && styles.darkModeContainer]}>
+      {/* Header with Settings Button */}
+      <View style={styles.header}>
+        <Text style={[styles.headerTitle, isDarkMode && styles.darkModeText]}>Profile</Text>
+        <TouchableOpacity 
+          style={styles.settingsIconButton}
+          onPress={() => setShowSettings(true)}
+        >
+          <Ionicons name="settings-outline" size={24} color={theme.tabBarActive} />
         </TouchableOpacity>
       </View>
-      
-      {/* <Text style={styles.footer}>Developed by Pushkal Vashishtha</Text> */}
 
-      {renderFullPageWishlist()}
-    </ScrollView>
+      <ScrollView 
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {user && (
+          <View style={[styles.userIntroContainer, isDarkMode && styles.darkModeCard]}>
+            {user.photoURL ? (
+              <Image source={{ uri: user.photoURL }} style={styles.userImage} />
+            ) : (
+              <Image 
+                source={require('../../assets/images/icon.png')} 
+                style={styles.userImage} 
+              />
+            )}
+            <Text style={[styles.userName, isDarkMode && styles.darkModeText]}>{user.fullName}</Text>
+            <Text style={[styles.userEmail, isDarkMode && styles.darkModeText]}>{user.email}</Text>
+          </View>
+        )}
+
+        {/* Wishlist Icon and Header */}
+        <TouchableOpacity 
+          style={[styles.wishlistHeader, isDarkMode && styles.darkModeCard]}
+          onPress={() => setFullPageWishlist(true)}
+        >
+          <View style={styles.wishlistHeaderContent}>
+            <Ionicons name="heart" size={24} color="#4682B4" />
+            <Text style={[styles.wishlistTitle, isDarkMode && styles.darkModeText]}>My Travel Wishlist</Text>
+          </View>
+          <View style={styles.wishlistCountBadge}>
+            <Text style={styles.wishlistCountText}>{wishlistItems.length}</Text>
+          </View>
+        </TouchableOpacity>
+
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+            <Text style={styles.signOutButtonText}>Sign Out</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
+            <Text style={styles.shareButtonText}>Share App</Text>
+          </TouchableOpacity>
+        </View>
+
+        {renderFullPageWishlist()}
+        {renderSettingsModal()}
+        {renderLanguageModal()}
+        {renderCurrencyModal()}
+        {renderSecurityModal()}
+        {renderPrivacyModal()}
+        {renderHelpModal()}
+        {renderAboutModal()}
+      </ScrollView>
+    </View>
   );
 };
 
@@ -585,10 +1134,10 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   emptyWishlistText: {
-    fontFamily: 'outfit-medium',
-    fontSize: 18,
-    color: '#999',
-    marginTop: 15,
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#666',
+    marginTop: 20,
   },
   emptyWishlistSubtext: {
     fontFamily: 'outfit',
@@ -656,6 +1205,324 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: {width: -1, height: 1},
     textShadowRadius: 10,
+  },
+  darkModeContainer: {
+    backgroundColor: '#121212',
+  },
+  darkModeCard: {
+    backgroundColor: '#1e1e1e',
+  },
+  darkModeText: {
+    color: '#f0f0f0',
+  },
+  darkModeSettingItem: {
+    borderBottomColor: '#333',
+  },
+  darkModeModalContent: {
+    backgroundColor: '#1e1e1e',
+  },
+  darkModeModalOption: {
+    borderBottomColor: '#333',
+  },
+  darkModeInput: {
+    backgroundColor: '#333',
+    color: '#f0f0f0',
+  },
+  settingsButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  settingsButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  settingsButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 10,
+    color: '#4682B4',
+  },
+  settingsContainer: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  settingsHeader: {
+    backgroundColor: '#4682B4',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    paddingTop: 50,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  settingsTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginLeft: 10,
+  },
+  settingsContent: {
+    padding: 15,
+  },
+  settingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  settingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  settingRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  settingText: {
+    fontSize: 16,
+    marginLeft: 15,
+    color: '#333',
+  },
+  settingValue: {
+    fontSize: 16,
+    color: '#666',
+    marginRight: 10,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    width: '80%',
+    maxHeight: '80%',
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  modalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalOptionSelected: {
+    backgroundColor: '#f0f8ff',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  modalOptionTextSelected: {
+    color: '#4682B4',
+    fontWeight: 'bold',
+  },
+  securityForm: {
+    marginTop: 10,
+  },
+  securityLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 5,
+    color: '#333',
+  },
+  securityInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 15,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  securityButton: {
+    backgroundColor: '#4682B4',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  securityButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  privacyContent: {
+    marginTop: 10,
+  },
+  privacyText: {
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 20,
+    color: '#333',
+  },
+  privacySection: {
+    marginBottom: 20,
+  },
+  privacySectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 5,
+    color: '#333',
+  },
+  privacySectionText: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#333',
+  },
+  privacyButton: {
+    backgroundColor: '#4682B4',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  privacyButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  helpContent: {
+    marginTop: 10,
+  },
+  helpText: {
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 20,
+    color: '#333',
+  },
+  helpSection: {
+    marginBottom: 20,
+  },
+  helpSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 5,
+    color: '#333',
+  },
+  helpSectionText: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#333',
+  },
+  helpButton: {
+    backgroundColor: '#4682B4',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  helpButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  aboutContent: {
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  aboutLogo: {
+    width: 80,
+    height: 80,
+    marginBottom: 15,
+  },
+  aboutAppName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 5,
+    color: '#333',
+  },
+  aboutVersion: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 15,
+  },
+  aboutDescription: {
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#333',
+  },
+  aboutSection: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  aboutSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 5,
+    color: '#333',
+  },
+  aboutSectionText: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#333',
+  },
+  aboutButton: {
+    backgroundColor: '#4682B4',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+    width: '100%',
+  },
+  aboutButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 15,
+    backgroundColor: 'transparent',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  settingsIconButton: {
+    padding: 8,
+    borderRadius: 20,
   },
 });
 
